@@ -1,6 +1,6 @@
 // ARCHIVO: src/App.tsx
 import { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, LogOut, Loader2, User } from 'lucide-react';
+import { Settings, AlertCircle, CheckCircle, LogOut, Loader2, User, Shield } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 
@@ -15,6 +15,7 @@ import ProjectPlanner from './features/tools/ProjectPlanner';
 import OperationalCostCalculator from './features/tools/OperationalCostCalculator';
 import ProjectTracker from './features/tools/ProjectTracker';
 import SettingsModal from './features/settings/SettingsModal';
+import AdminDashboard from './features/admin/AdminDashboard'; // <--- NUEVO IMPORT
 
 // Servicios
 import { BackendService } from './services/storageService';
@@ -35,7 +36,8 @@ export default function ElevatorQuoter() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // --- ESTADOS DE LA APP ---
-  const [view, setView] = useState<'dashboard' | 'quoter' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker'>('dashboard');
+  // Agregamos 'admin' a las vistas posibles
+  const [view, setView] = useState<'dashboard' | 'quoter' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker' | 'admin'>('dashboard');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notification, setNotification] = useState<{msg: string, type: 'success'|'error'} | null>(null);
   const [quotes, setQuotes] = useState<QuoteData[]>([]);
@@ -43,13 +45,11 @@ export default function ElevatorQuoter() {
 
   // --- EFECTO 1: GESTIÓN DE AUTENTICACIÓN Y PERFIL ---
   useEffect(() => {
-    // Función auxiliar para cargar perfil
     const loadProfile = async (userId: string) => {
       const profile = await UserService.getProfile(userId);
       setUserProfile(profile);
     };
 
-    // 1. Verificar sesión al inicio
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -58,7 +58,6 @@ export default function ElevatorQuoter() {
       setAuthLoading(false);
     });
 
-    // 2. Escuchar cambios (Login/Logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
@@ -73,7 +72,7 @@ export default function ElevatorQuoter() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // --- EFECTO 2: CARGAR COTIZACIONES (Solo si hay sesión) ---
+  // --- EFECTO 2: CARGAR COTIZACIONES ---
   useEffect(() => {
     if (session) {
       const fetchQuotes = async () => {
@@ -100,12 +99,11 @@ export default function ElevatorQuoter() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // --- LÓGICA DE NEGOCIO (QUOTES) ---
+  // --- LÓGICA DE NEGOCIO ---
 
   const handleSaveQuote = async (quote: QuoteData) => {
     try {
       const savedQuote = await BackendService.saveQuote(quote);
-      // Recargar lista completa para asegurar sincronización
       const updatedList = await BackendService.getQuotes();
       setQuotes(updatedList);
       setWorkingQuote(savedQuote);
@@ -193,7 +191,6 @@ export default function ElevatorQuoter() {
 
   // --- RENDERIZADO ---
 
-  // 1. Cargando credenciales
   if (authLoading) {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -203,26 +200,18 @@ export default function ElevatorQuoter() {
     );
   }
 
-  // 2. No autenticado -> Login
   if (!session) {
     return <LoginPage />;
   }
 
-  // 3. Autenticado -> Aplicación Principal
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-800 relative">
       {/* HEADER CORPORATIVO */}
       <header className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex justify-between items-center shadow-lg sticky top-0 z-20 print:hidden">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
-          {/* LOGO PERSONALIZADO */}
           <div className="bg-white p-1.5 rounded-lg shadow-md hover:rotate-6 transition-transform">
-             <img 
-               src="/images/logo-alamex.png" 
-               alt="Logo" 
-               className="w-8 h-8 object-contain" 
-             />
+             <img src="/images/logo-alamex.png" alt="Logo" className="w-8 h-8 object-contain" />
           </div>
-          
           <div>
             <h1 className="text-2xl font-black text-white tracking-wide uppercase italic">ALAMEX</h1>
             <p className="text-xs text-yellow-400 font-medium tracking-wider">Ascending Together</p>
@@ -230,6 +219,17 @@ export default function ElevatorQuoter() {
         </div>
         
         <div className="flex items-center gap-4">
+          
+          {/* BOTÓN DE ADMIN - SOLO VISIBLE SI ES ADMIN */}
+          {userProfile?.role === 'admin' && (
+            <button 
+              onClick={() => setView('admin')}
+              className="hidden md:flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-full text-xs font-bold transition-colors mr-4 shadow-sm border border-red-500"
+            >
+              <Shield size={14} /> TI Admin
+            </button>
+          )}
+
           {/* INFORMACIÓN DEL USUARIO */}
           <div className="hidden md:flex flex-col items-end mr-2 cursor-pointer" onClick={() => setSettingsOpen(true)}>
              <span className="text-sm font-bold text-white leading-none">
@@ -262,15 +262,18 @@ export default function ElevatorQuoter() {
 
       {/* CUERPO PRINCIPAL */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto md:p-6 gap-6 print:p-0 print:w-full print:max-w-none">
-        <Sidebar 
-            currentView={view} 
-            setView={setView} 
-            onNewQuote={handleCreateNewQuote}
-            quotes={quotes}
-            onSelectQuote={(q: QuoteData) => { setWorkingQuote(q); setView('quoter'); }}
-        />
+        {/* SIDEBAR SE OCULTA EN VISTA ADMIN */}
+        {view !== 'admin' && (
+          <Sidebar 
+              currentView={view} 
+              setView={setView} 
+              onNewQuote={handleCreateNewQuote}
+              quotes={quotes}
+              onSelectQuote={(q: QuoteData) => { setWorkingQuote(q); setView('quoter'); }}
+          />
+        )}
         
-        <main className="flex-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[600px] relative transition-all print:shadow-none print:border-none print:rounded-none">
+        <main className={`flex-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[600px] relative transition-all print:shadow-none print:border-none print:rounded-none ${view === 'admin' ? 'w-full max-w-none' : ''}`}>
           {view === 'dashboard' && (
             <Dashboard 
               quotes={quotes} 
@@ -280,6 +283,11 @@ export default function ElevatorQuoter() {
               onUpdateStatus={handleUpdateStatus} 
               onTrack={handleTrackQuote} 
             />
+          )}
+
+          {/* VISTA DE ADMIN */}
+          {view === 'admin' && (
+            <AdminDashboard onExit={() => setView('dashboard')} />
           )}
           
           {view === 'quoter' && (

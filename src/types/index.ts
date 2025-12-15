@@ -95,4 +95,6 @@ export interface UserProfile {
   job_title: string | null;
   department: string | null;
   avatar_url: string | null;
+  role?: 'admin' | 'user'; // Nuevo
+  active?: boolean;        // Nuevo
 }
