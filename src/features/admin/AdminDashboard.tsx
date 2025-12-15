@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Users, Activity, FileText, DollarSign, 
-  Trash2, UserCheck, UserX, BarChart3, ArrowLeft // <--- Agregamos ArrowLeft
+  Trash2, UserCheck, BarChart3, ArrowLeft // <--- Agregamos ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 import type { UserProfile, QuoteData } from '../../types';
