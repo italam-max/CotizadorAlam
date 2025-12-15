@@ -1,6 +1,6 @@
 // ARCHIVO: src/App.tsx
 import { useState, useEffect } from 'react';
-import { Settings, AlertCircle, CheckCircle, LogOut, Loader2, User } from 'lucide-react';
+import { AlertCircle, CheckCircle, LogOut, Loader2, User } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 
