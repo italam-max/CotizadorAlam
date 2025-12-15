@@ -1,14 +1,14 @@
 // ARCHIVO: src/services/storageService.ts
 import type { QuoteData, AppSettings } from '../types';
-import { INITIAL_SETTINGS, SEED_QUOTES } from '../data/constants';
+import { INITIAL_SETTINGS } from '../data/constants'; // Quitamos SEED_QUOTES
 import { supabase } from '../supabaseClient';
 
 const DB_KEYS = { SETTINGS: 'alamex_settings_v1' };
 
-// Función auxiliar para convertir keys de camelCase (React) a snake_case (Base de Datos)
-// Supabase prefiere snake_case en Postgres, pero tu app usa camelCase.
+// ... (El resto de funciones mapToDb y mapFromDb siguen igual, no las repito para ahorrar espacio) ...
+// ... Copia las funciones auxiliares mapToDb y mapFromDb de la versión anterior ...
+
 const mapToDb = (q: QuoteData) => ({
-  // No enviamos 'id' si es nuevo, Supabase lo genera
   ...(q.id && typeof q.id === 'number' ? { id: q.id } : {}),
   status: q.status,
   current_stage: q.currentStage,
@@ -53,7 +53,6 @@ const mapToDb = (q: QuoteData) => ({
   materials: q.materials
 });
 
-// Función auxiliar inversa: de DB (snake_case) a App (camelCase)
 const mapFromDb = (dbItem: any): QuoteData => ({
   id: dbItem.id,
   status: dbItem.status,
@@ -100,18 +99,14 @@ const mapFromDb = (dbItem: any): QuoteData => ({
 });
 
 export const BackendService = {
-  // OBTENER TODAS LAS COTIZACIONES
   getQuotes: async (): Promise<QuoteData[]> => {
     try {
       const { data, error } = await supabase
         .from('quotes')
         .select('*')
-        .order('id', { ascending: false }); // Las más nuevas primero
+        .order('id', { ascending: false });
 
       if (error) throw error;
-      
-      // Si la tabla está vacía, podríamos devolver SEED_QUOTES o array vacío.
-      // Para producción, mejor array vacío.
       return data ? data.map(mapFromDb) : [];
     } catch (error) {
       console.error("Error fetching quotes:", error);
@@ -119,13 +114,11 @@ export const BackendService = {
     }
   },
 
-  // GUARDAR (CREAR O ACTUALIZAR)
   saveQuote: async (quote: QuoteData): Promise<QuoteData> => {
     try {
       const dbPayload = mapToDb(quote);
       
       if (quote.id && typeof quote.id === 'number') {
-        // ACTUALIZAR EXISTENTE
         const { data, error } = await supabase
           .from('quotes')
           .update(dbPayload)
@@ -136,7 +129,6 @@ export const BackendService = {
         if (error) throw error;
         return mapFromDb(data);
       } else {
-        // CREAR NUEVA (borramos el ID temporal si existiera para que Supabase genere uno nuevo)
         const { id, ...payloadWithoutId } = dbPayload; 
         const { data, error } = await supabase
           .from('quotes')
@@ -153,7 +145,6 @@ export const BackendService = {
     }
   },
 
-  // BORRAR
   deleteQuote: async (id: number | string) => {
     try {
       const { error } = await supabase
@@ -167,7 +158,6 @@ export const BackendService = {
     }
   },
 
-  // ACTUALIZAR STATUS (Optimizado para solo enviar ese campo)
   updateQuoteStatus: async (id: number | string, status: QuoteData['status']) => {
     try {
       const { error } = await supabase
@@ -176,7 +166,6 @@ export const BackendService = {
         .eq('id', id);
         
       if (error) throw error;
-      // Retornamos todas para refrescar la lista (o podrías optimizar el estado local)
       return BackendService.getQuotes();
     } catch (error) {
       console.error("Error updating status:", error);
@@ -184,8 +173,6 @@ export const BackendService = {
     }
   },
 
-  // La configuración de la app (Whapi tokens, etc.) sigue siendo local por ahora
-  // O puedes crear una tabla 'settings' en Supabase si quieres compartirla.
   getSettings: (): AppSettings => {
     const data = localStorage.getItem(DB_KEYS.SETTINGS);
     return data ? JSON.parse(data) : INITIAL_SETTINGS;

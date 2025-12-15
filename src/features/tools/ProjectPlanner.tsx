@@ -1,5 +1,5 @@
 // ARCHIVO: src/features/tools/ProjectPlanner.tsx
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Calendar, RefreshCcw, Edit3, Activity } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { STANDARD_PHASES } from '../../data/constants';
@@ -92,7 +92,6 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8 h-full">
-        {/* Ajuste de Fases y Cronograma Visual (Copia el resto del JSX de ProjectPlanner aquí) */}
         <div className="w-full lg:w-2/5 bg-white p-6 rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Edit3 size={18} className="text-blue-600"/> Ajuste de Fases</h3>
            <div className="flex-1 overflow-y-auto pr-2 space-y-2">

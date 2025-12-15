@@ -1,6 +1,6 @@
 // ARCHIVO: src/features/tools/ProjectTracker.tsx
-import React, { useState } from 'react';
-import { Radar, ArrowLeft, Info, MessageCircle, Share2, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { Radar, ArrowLeft, MessageCircle, TrendingUp } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { PROJECT_STAGES } from '../../data/constants';
 
@@ -54,7 +54,6 @@ export default function ProjectTracker({ quote, onUpdate, onBack }: ProjectTrack
       </div>
 
       <div className="max-w-4xl mx-auto w-full">
-        {/* Barra de progreso visual */}
         <div className="bg-white p-8 rounded-xl shadow-lg border border-gray-100 mb-8 relative overflow-hidden">
           <div className="absolute top-14 left-0 w-full h-1 bg-gray-100 -z-10"></div>
           <div 
@@ -82,9 +81,6 @@ export default function ProjectTracker({ quote, onUpdate, onBack }: ProjectTrack
             })}
           </div>
         </div>
-
-        {/* ... Resto de la UI (Detalles de etapa y Modal) ... */}
-        {/* (Copia el resto del contenido del componente Tracker aquí) */}
       </div>
       
       {showNotifyModal && (

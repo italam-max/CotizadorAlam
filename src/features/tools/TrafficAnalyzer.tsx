@@ -1,15 +1,13 @@
 // ARCHIVO: src/features/tools/TrafficAnalyzer.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   BarChart2, Calculator, Building, TrendingUp, AlertTriangle, 
   ThumbsDown, Zap, ThumbsUp, ShoppingCart 
 } from 'lucide-react';
 
-// Importamos lo que separamos
 import { calculateTrafficAnalysis } from '../../services/trafficService';
 import { InputGroup } from '../../components/ui/InputGroup';
 
-// Definimos las props que recibe este componente
 interface TrafficAnalyzerProps {
   onQuote: (data: any) => void;
 }
@@ -105,7 +103,6 @@ export default function TrafficAnalyzer({ onQuote }: TrafficAnalyzerProps) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {/* Tarjeta Nivel Estándar */}
                  <div className="bg-white rounded-xl shadow-lg border-t-4 border-orange-400 overflow-hidden flex flex-col relative">
                     <div className="p-6 bg-orange-50 border-b border-orange-100">
                        <h4 className="text-lg font-black text-orange-800 flex items-center gap-2"><AlertTriangle size={20}/> NIVEL ESTÁNDAR</h4>
@@ -148,7 +145,6 @@ export default function TrafficAnalyzer({ onQuote }: TrafficAnalyzerProps) {
                     </div>
                  </div>
 
-                 {/* Tarjeta Nivel Excelente */}
                  <div className="bg-white rounded-xl shadow-lg border-t-4 border-green-500 overflow-hidden flex flex-col transform scale-105 z-10 ring-4 ring-green-50 relative">
                     <div className="absolute top-0 right-0 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg shadow-sm">RECOMENDADO</div>
                     <div className="p-6 bg-green-50 border-b border-green-100">
