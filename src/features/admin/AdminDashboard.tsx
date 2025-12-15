@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Users, Activity, FileText, DollarSign, 
-  Trash2, UserCheck, BarChart3, ArrowLeft,
+  Trash2, UserCheck, UserX, BarChart3, ArrowLeft,
   UserPlus, X, Save, Loader2
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
@@ -25,8 +25,10 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
 
   // Función para recargar datos
   const refreshData = async () => {
+      // Nota: Aquí asumimos que tienes políticas RLS que permiten al admin ver todo
       const { data: profilesData } = await supabase.from('profiles').select('*').order('full_name');
       const { data: quotesData } = await supabase.from('quotes').select('*');
+      
       if (profilesData) setUsers(profilesData);
       if (quotesData) setQuotes(quotesData as any);
   };
@@ -46,7 +48,6 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
     setCreating(true);
 
     try {
-      // Llamamos a nuestra API Backend (la que creamos en api/createUser.js)
       const response = await fetch('/api/createUser', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,8 +60,8 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
 
       alert(`Usuario ${newUser.fullName} creado exitosamente.`);
       setShowCreateModal(false);
-      setNewUser({ email: '', password: '', fullName: '', jobTitle: '', role: 'user' }); // Limpiar
-      await refreshData(); // Recargar tabla
+      setNewUser({ email: '', password: '', fullName: '', jobTitle: '', role: 'user' }); 
+      await refreshData(); 
 
     } catch (error: any) {
       alert('Error: ' + error.message);
@@ -69,7 +70,34 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
     }
   };
 
-  // ... (El resto de cálculos de estadísticas se mantiene igual)
+  // --- LÓGICA MEJORADA PARA CAMBIAR ESTADO (ARCHIVAR/REACTIVAR) ---
+  const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    // 1. Definir qué acción estamos haciendo para el mensaje
+    const action = currentStatus ? 'desactivar (archivar)' : 'reactivar';
+    
+    // 2. Confirmación explícita
+    if(!confirm(`¿Estás seguro de que deseas ${action} a este usuario? \n\n${currentStatus ? 'No podrá acceder al sistema, pero sus cotizaciones se conservarán.' : 'El usuario podrá volver a entrar con su contraseña actual.'}`)) {
+        return; // Si dice que no, cancelamos
+    }
+
+    // 3. Intento de actualización en Base de Datos
+    const { error } = await supabase
+        .from('profiles')
+        .update({ active: !currentStatus })
+        .eq('id', userId);
+
+    // 4. Manejo de respuesta
+    if (error) {
+        console.error("Error BD:", error);
+        alert("No se pudo actualizar el estado. Verifica que tengas permisos de Admin en la base de datos.");
+    } else {
+        // Solo si la BD respondió OK, actualizamos la vista local
+        setUsers(users.map(u => u.id === userId ? {...u, active: !currentStatus} : u));
+    }
+  };
+
+
+  // --- CÁLCULOS DE ESTADÍSTICAS ---
   const totalUsers = users.length;
   const totalQuotes = quotes.length;
   const totalSent = quotes.filter(q => q.status === 'Enviada').length;
@@ -80,14 +108,13 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
     return { count: userQuotes.length, sent: userQuotes.filter(q => q.status === 'Enviada').length };
   };
 
-  const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
-    if(confirm(`¿Deseas ${currentStatus ? 'desactivar' : 'activar'} a este usuario?`)) {
-        await supabase.from('profiles').update({ active: !currentStatus }).eq('id', userId);
-        setUsers(users.map(u => u.id === userId ? {...u, active: !currentStatus} : u));
-    }
-  };
 
-  if (loading) return <div className="min-h-full flex flex-col items-center justify-center p-10"><p className="animate-pulse font-bold text-slate-400">Cargando datos confidenciales...</p></div>;
+  if (loading) return (
+    <div className="min-h-full flex flex-col items-center justify-center p-10">
+        <Loader2 className="animate-spin mb-4 text-blue-900" size={32}/>
+        <p className="animate-pulse font-bold text-slate-400">Cargando datos confidenciales...</p>
+    </div>
+  );
 
   return (
     <div className="p-8 animate-fadeIn h-full flex flex-col overflow-auto bg-slate-50 relative">
@@ -109,7 +136,7 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
         </div>
       </div>
 
-      {/* KPI CARDS (Resumidos) */}
+      {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between"><div><p className="text-xs font-bold text-slate-400 uppercase">Usuarios</p><h3 className="text-3xl font-black text-slate-800">{totalUsers}</h3></div><Users className="text-blue-600"/></div>
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between"><div><p className="text-xs font-bold text-slate-400 uppercase">Cotizaciones</p><h3 className="text-3xl font-black text-slate-800">{totalQuotes}</h3></div><FileText className="text-yellow-600"/></div>
@@ -142,18 +169,42 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {users.map(user => (
-                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={user.id} className={`transition-colors ${user.active === false ? 'bg-gray-50' : 'hover:bg-slate-50'}`}>
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">{user.full_name?.charAt(0) || '?'}</div>
-                                    <div><p className="font-bold text-slate-800">{user.full_name || 'Sin nombre'}</p><p className="text-[10px] text-slate-500">{user.job_title}</p></div>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${user.active === false ? 'bg-gray-200 text-gray-500' : 'bg-blue-100 text-blue-700'}`}>
+                                        {user.full_name?.charAt(0) || '?'}
+                                    </div>
+                                    <div>
+                                        <p className={`font-bold ${user.active === false ? 'text-gray-400 line-through' : 'text-slate-800'}`}>
+                                            {user.full_name || 'Sin nombre'}
+                                        </p>
+                                        <p className="text-[10px] text-slate-500">{user.job_title}</p>
+                                    </div>
                                 </div>
                             </td>
                             <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${user.role === 'admin' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>{user.role || 'user'}</span></td>
                             <td className="px-6 py-4 text-center font-bold text-slate-700">{getUserStats(user.id).count}</td>
-                            <td className="px-6 py-4 text-right"><span className={`text-xs font-bold ${user.active !== false ? 'text-green-600' : 'text-slate-400'}`}>{user.active !== false ? 'Activo' : 'Inactivo'}</span></td>
+                            
+                            {/* Estado con color */}
                             <td className="px-6 py-4 text-right">
-                                <button onClick={() => toggleUserStatus(user.id, user.active !== false)} className="p-2 text-slate-400 hover:text-red-600 transition-colors" title={user.active !== false ? "Bloquear" : "Activar"}>
+                                <span className={`text-xs font-bold flex justify-end items-center gap-1 ${user.active !== false ? 'text-green-600' : 'text-red-400'}`}>
+                                    {user.active !== false ? <UserCheck size={14}/> : <UserX size={14}/>}
+                                    {user.active !== false ? 'Activo' : 'Archivado'}
+                                </span>
+                            </td>
+
+                            {/* Botón de Acción Mejorado */}
+                            <td className="px-6 py-4 text-right">
+                                <button 
+                                    onClick={() => toggleUserStatus(user.id, user.active !== false)} 
+                                    className={`p-2 rounded transition-colors ${
+                                        user.active !== false 
+                                        ? 'text-slate-400 hover:text-red-600 hover:bg-red-50' 
+                                        : 'text-red-500 bg-red-50 hover:bg-green-100 hover:text-green-600'
+                                    }`}
+                                    title={user.active !== false ? "Archivar Usuario" : "Reactivar Usuario"}
+                                >
                                     {user.active !== false ? <Trash2 size={16}/> : <UserCheck size={16}/>}
                                 </button>
                             </td>
@@ -178,7 +229,7 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
                             <input required value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} className="form-input" placeholder="Ej. Juan Pérez" />
                         </InputGroup>
                         <InputGroup label="Cargo / Puesto">
-                            <input required value={newUser.jobTitle} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" />
+                            <input required value={newUser.job_title} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" />
                         </InputGroup>
                     </div>
                     <InputGroup label="Correo Electrónico (Login)">
