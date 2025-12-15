@@ -252,7 +252,7 @@ export default function AdminDashboard({ onExit, onNotify }: AdminDashboardProps
                    {/* Formulario igual que antes... */}
                    <div className="grid grid-cols-2 gap-4">
                         <InputGroup label="Nombre Completo"><input required value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} className="form-input" placeholder="Ej. Juan Pérez" /></InputGroup>
-                        <InputGroup label="Cargo / Puesto"><input required value={newUser.job_title} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" /></InputGroup>
+                        <InputGroup label="Cargo / Puesto"><input required value={newUser.jobTitle} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" /></InputGroup>
                     </div>
                     <InputGroup label="Correo Electrónico"><input required type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="form-input" placeholder="usuario@alamex.mx" /></InputGroup>
                     <InputGroup label="Contraseña"><input required type="text" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="form-input" placeholder="Mínimo 6 caracteres" minLength={6} /></InputGroup>

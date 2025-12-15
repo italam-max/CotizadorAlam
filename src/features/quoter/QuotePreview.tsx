@@ -1,202 +1,197 @@
 // ARCHIVO: src/features/quoter/QuotePreview.tsx
-import { useMemo } from 'react'; // Quitamos React
-import { ArrowLeft, CheckSquare, Clock, Share2, Mail, Printer } from 'lucide-react';
-import type { QuoteData } from '../../types';
-import { ELEVATOR_MODELS } from '../../data/constants';
-import { generateQuoteDescription } from '../../services/utils';
+import { useState, useEffect } from 'react';
+import { 
+  ArrowLeft, CheckCircle, Download, Loader2, 
+  MessageCircle, Mail, Share2 
+} from 'lucide-react';
+import type { QuoteData, UserProfile } from '../../types';
+import { supabase } from '../../supabaseClient';
+import { UserService } from '../../services/userService';
+
+// Importamos el PDF y el generador de links
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { QuotePDFDocument } from './QuotePDF';
 
 interface QuotePreviewProps {
   data: QuoteData;
   onBack: () => void;
-  onUpdateStatus: (id: string | number, status: QuoteData['status']) => void;
+  onUpdateStatus: (id: number | string, status: QuoteData['status']) => void;
 }
 
 export default function QuotePreview({ data, onBack, onUpdateStatus }: QuotePreviewProps) {
-  // ... (El resto del código es igual, solo cambiaron los imports)
-  const description = useMemo(() => generateQuoteDescription(data), [data]);
-  const estimatedPrice = 1110000;
-  const totalPrice = (estimatedPrice * data.quantity) + (data.installationCost || 0);
+  const [activeProfile, setActiveProfile] = useState<UserProfile | null>(null);
 
-  const handlePrint = () => window.print();
+  // Cargamos el perfil del usuario para ponerlo en el PDF
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) UserService.getProfile(user.id).then(setActiveProfile);
+    });
+  }, []);
 
-  const handleShare = (method: 'whatsapp' | 'email') => {
-    let msg = `Hola, adjunto cotización para el proyecto ${data.projectRef}.\n\nTotal: $${totalPrice.toLocaleString()}\n\nAtte. Alamex`;
-    if (method === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      window.location.href = `mailto:?subject=Cotización Alamex - ${data.projectRef}&body=${encodeURIComponent(msg)}`;
-    }
+  // Formateador de moneda
+  const formatter = new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  });
+
+  const total = (data.price || 0) * (data.quantity || 1);
+
+  // --- FUNCIONES DE COMPARTIR ---
+  
+  const handleShareWhatsapp = () => {
+    const text = `Hola, te comparto la cotización *${data.projectRef}* para el proyecto de elevadores Alamex.\n\nModelo: ${data.model}\nNiveles: ${data.stops}\nInversión: ${formatter.format(total)}\n\n(Adjunto encontrarás el PDF oficial con los detalles técnicos).`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleShareEmail = () => {
+    const subject = `Cotización Alamex: ${data.projectRef}`;
+    const body = `Estimado cliente,\n\nAdjunto encontrará la propuesta técnica y económica para su proyecto de elevadores.\n\nResumen:\nModelo: ${data.model}\nNiveles: ${data.stops}\nTotal: ${formatter.format(total)}\n\nQuedo atento a sus comentarios.\n\nSaludos cordiales.`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-8 flex flex-col items-center">
-      <div className="w-full max-w-4xl flex justify-between items-center mb-6 print:hidden">
-        <button onClick={onBack} className="flex items-center gap-2 text-gray-600 hover:text-blue-900 font-bold transition-colors">
-          <ArrowLeft size={20} /> Volver al Editor
+    <div className="h-full flex flex-col animate-fadeIn">
+      {/* --- BARRA DE HERRAMIENTAS --- */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 print:hidden">
+        
+        {/* Lado Izquierdo: Volver */}
+        <button onClick={onBack} className="text-gray-500 hover:text-blue-900 flex items-center gap-2 font-bold self-start md:self-center">
+          <ArrowLeft size={20} /> <span className="hidden md:inline">Volver a editar</span>
         </button>
-        <div className="flex gap-2">
-            <button onClick={() => onUpdateStatus(data.id, 'Enviada')} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-green-700 transition-colors text-sm">
-                <CheckSquare size={18} /> Marcar Enviada
+        
+        {/* Lado Derecho: Acciones */}
+        <div className="flex flex-wrap gap-2 justify-end">
+            
+            {/* 1. DESCARGAR PDF (Botón Principal) */}
+            <PDFDownloadLink
+                document={<QuotePDFDocument data={data} userProfile={activeProfile} />}
+                fileName={`Cotizacion-${data.projectRef}.pdf`}
+                className="btn-primary bg-red-600 hover:bg-red-700 flex items-center gap-2 text-sm shadow-md"
+            >
+                {({ loading }) => (
+                    loading 
+                    ? <><Loader2 className="animate-spin" size={18}/> Generando...</> 
+                    : <><Download size={18} /> Descargar PDF</>
+                )}
+            </PDFDownloadLink>
+
+            {/* 2. WHATSAPP */}
+            <button 
+                onClick={handleShareWhatsapp}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold flex items-center gap-2 text-sm transition-colors shadow-sm"
+                title="Compartir texto por WhatsApp"
+            >
+                <MessageCircle size={18} /> <span className="hidden lg:inline">WhatsApp</span>
             </button>
-            <button onClick={() => onUpdateStatus(data.id, 'Por Seguimiento')} className="flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-orange-600 transition-colors text-sm">
-                <Clock size={18} /> Por Seguimiento
+
+            {/* 3. EMAIL */}
+            <button 
+                onClick={handleShareEmail}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold flex items-center gap-2 text-sm transition-colors shadow-sm"
+                title="Redactar Correo"
+            >
+                <Mail size={18} />
             </button>
-            <div className="w-px bg-gray-300 mx-2"></div>
-            <button onClick={() => handleShare('whatsapp')} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 shadow" title="Enviar por WhatsApp"><Share2 size={20} /></button>
-            <button onClick={() => handleShare('email')} className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 shadow" title="Enviar por Correo"><Mail size={20} /></button>
-            <button onClick={handlePrint} className="flex items-center gap-2 bg-blue-900 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-800 transition-transform hover:scale-105">
-            <Printer size={20} /> Imprimir PDF
-            </button>
+
+            {/* 4. MARCAR ENVIADA */}
+            {data.id && (
+                <button 
+                    onClick={() => onUpdateStatus(data.id!, 'Enviada')}
+                    className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-lg font-bold flex items-center gap-2 text-sm transition-colors shadow-sm border border-blue-800"
+                >
+                    <CheckCircle size={18} /> <span className="hidden lg:inline">Marcar Enviada</span>
+                </button>
+            )}
         </div>
       </div>
 
-      <div className="bg-white w-full max-w-4xl shadow-2xl print:shadow-none print:w-full print:max-w-none print:p-0">
-        <div className="p-8 border-b-4 border-blue-900 flex justify-between items-end bg-slate-50 print:bg-white">
-          <div>
-            <h1 className="text-4xl font-black text-slate-300 tracking-widest uppercase mb-1">ALAMEX</h1>
-            <p className="text-sm font-bold text-yellow-600 tracking-wide uppercase">Ascending Together</p>
-            <p className="text-xs text-gray-400 mt-1">www.alam.mx</p>
-          </div>
-          <div className="text-right">
-            <h2 className="text-xl font-bold text-blue-900">COTIZACIÓN DE PROYECTO</h2>
-            <p className="text-sm text-gray-500">Ref: {data.projectRef}</p>
-            <p className="text-sm text-gray-500">Fecha: {data.projectDate}</p>
-          </div>
-        </div>
-
-        <div className="p-10 space-y-10">
-          <section>
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 print:bg-transparent print:border-gray-200">
-              <h3 className="font-bold text-blue-900 mb-2 uppercase text-sm border-b border-blue-200 pb-1">Información del Cliente</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><span className="font-bold text-gray-600">Cliente:</span> {data.clientName}</div>
-                <div><span className="font-bold text-gray-600">Teléfono:</span> {data.clientPhone}</div>
-                <div><span className="font-bold text-gray-600">Email:</span> {data.clientEmail}</div>
-                <div><span className="font-bold text-gray-600">Ubicación:</span> CIUDAD DE MÉXICO</div>
-              </div>
+      {/* --- VISTA PREVIA VISUAL (HTML) --- */}
+      <div className="flex-1 overflow-auto bg-gray-500/10 p-4 md:p-8 rounded-xl border border-gray-300 shadow-inner flex justify-center">
+        
+        {/* Hoja de Papel Simulada */}
+        <div className="bg-white w-full max-w-3xl min-h-[800px] shadow-2xl p-10 md:p-16 relative transform transition-transform hover:scale-[1.005] duration-500">
+            {/* Decoración Superior */}
+            <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-blue-900 to-blue-700"></div>
+            <div className="absolute top-3 right-10 w-20 h-24 bg-yellow-400 shadow-lg rounded-b-lg flex items-end justify-center pb-4">
+                <span className="text-blue-900 font-black text-xs tracking-widest uppercase writing-mode-vertical">Original</span>
             </div>
-
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-blue-900 text-white">
-                  <th className="p-3 text-left w-3/5">Descripción</th>
-                  <th className="p-3 text-center">Cant.</th>
-                  <th className="p-3 text-right">Precio Unitario</th>
-                  <th className="p-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-200">
-                  <td className="p-4 align-top">
-                    <p className="font-bold text-gray-800 mb-1">{description}</p>
-                    <p className="text-xs text-gray-500">Incluye suministro, instalación y puesta en marcha.</p>
-                  </td>
-                  <td className="p-4 text-center align-top font-bold">{data.quantity}</td>
-                  <td className="p-4 text-right align-top text-gray-600">${estimatedPrice.toLocaleString()}</td>
-                  <td className="p-4 text-right align-top font-bold text-blue-900">${(estimatedPrice * data.quantity).toLocaleString()}</td>
-                </tr>
-                {data.installationCost ? (
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <td className="p-4 font-medium text-gray-700">Servicio de Mano de Obra (Instalación)</td>
-                    <td className="p-4 text-center">1</td>
-                    <td className="p-4 text-right text-gray-600">${data.installationCost.toLocaleString()}</td>
-                    <td className="p-4 text-right font-bold text-blue-900">${data.installationCost.toLocaleString()}</td>
-                  </tr>
-                ) : null}
-              </tbody>
-              <tfoot>
-                <tr className="bg-gray-100">
-                  <td colSpan={3} className="p-3 text-right font-bold text-gray-700 uppercase">Total Propuesta (MXN)</td>
-                  <td className="p-3 text-right font-black text-xl text-blue-900">${totalPrice.toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </section>
-
-          <section className="break-inside-avoid">
-            <h3 className="font-black text-lg text-blue-900 mb-4 border-b-2 border-yellow-400 pb-1 inline-block uppercase">Especificaciones Técnicas</h3>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm">
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Tipo de Equipo</span>
-                <span className="font-medium">{ELEVATOR_MODELS.find(m => m.id === data.model)?.label}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Capacidad</span>
-                <span className="font-medium">{data.capacity} kg ({data.persons} personas)</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Velocidad</span>
-                <span className="font-medium">{data.speed} m/s</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Paradas / Niveles</span>
-                <span className="font-medium">{data.stops}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Recorrido</span>
-                <span className="font-medium">{data.travel / 1000} metros</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Dimensiones Cubo</span>
-                <span className="font-medium">{data.shaftWidth} x {data.shaftDepth} mm</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Foso / Overhead</span>
-                <span className="font-medium">{data.pit} mm / {data.overhead} mm</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Control</span>
-                <span className="font-medium">Inteligente {data.controlGroup}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Sistema Tracción</span>
-                <span className="font-medium">{data.traction}</span>
-              </div>
-              <div className="flex justify-between border-b border-gray-100 pb-1">
-                <span className="font-bold text-gray-600">Normativa</span>
-                <span className="font-medium">{data.norm}</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="break-inside-avoid">
-            <h3 className="font-black text-lg text-blue-900 mb-4 border-b-2 border-yellow-400 pb-1 inline-block uppercase">Acabados y Estética</h3>
-            <div className="grid grid-cols-2 gap-8">
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-3 uppercase text-xs tracking-wider">Cabina</h4>
-                <div className="space-y-2 text-sm">
-                  <p><span className="font-bold text-gray-600">Modelo:</span> {data.cabinModel}</p>
-                  <p><span className="font-bold text-gray-600">Acabado Muros:</span> {data.cabinFinish}</p>
-                  <p><span className="font-bold text-gray-600">Piso:</span> {data.cabinFloor}</p>
-                  <p><span className="font-bold text-gray-600">Pasamanos:</span> {data.handrailType}</p>
-                  <p><span className="font-bold text-gray-600">Botonera (COP):</span> {data.copModel}</p>
+            
+            <div className="flex justify-between items-start mb-12 mt-4">
+                <div>
+                    <h1 className="text-4xl font-black text-blue-900 uppercase tracking-tighter">Cotización</h1>
+                    <p className="text-gray-400 font-bold tracking-widest text-sm mt-1">{data.projectRef}</p>
                 </div>
-              </div>
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <h4 className="font-bold text-gray-800 mb-3 uppercase text-xs tracking-wider">Puertas</h4>
-                <div className="space-y-2 text-sm">
-                  <p><span className="font-bold text-gray-600">Tipo:</span> {data.doorType}</p>
-                  <p><span className="font-bold text-gray-600">Medidas:</span> {data.doorWidth} x {data.doorHeight} mm</p>
-                  <p><span className="font-bold text-gray-600">Acabado Piso:</span> {data.floorDoorFinish}</p>
-                  <p><span className="font-bold text-gray-600">Seguridad:</span> Cortina Infrarroja 64 LEDs</p>
+                <div className="text-right pr-24"> {/* Padding right para no chocar con la etiqueta amarilla */}
+                    <p className="font-bold text-gray-800 text-lg">Elevadores Alamex</p>
+                    <p className="text-xs text-blue-600 font-bold tracking-wider uppercase">Ascending Together</p>
+                    <p className="text-xs text-gray-500 mt-2">{new Date().toLocaleDateString()}</p>
                 </div>
-              </div>
             </div>
-          </section>
 
-          <section className="text-xs text-gray-600 space-y-2 pt-6 border-t border-gray-300 break-inside-avoid">
-            <h4 className="font-bold text-gray-800 uppercase">Condiciones Comerciales Generales:</h4>
-            <ul className="list-disc pl-4 space-y-1">
-              <li><strong>Tiempo de Entrega:</strong> Variable, sujeto a firma de contrato y aprobación de planos.</li>
-              <li><strong>Garantía:</strong> 12 meses contra defectos de fabricación, sujeta a mantenimiento autorizado.</li>
-              <li><strong>Mantenimiento:</strong> Se incluyen 3 meses de servicio preventivo gratuito post-entrega.</li>
-              <li><strong>Vigencia:</strong> Esta propuesta tiene una validez de 30 días hábiles.</li>
-            </ul>
-            <div className="mt-8 pt-8 text-center">
-              <p className="font-bold text-blue-900">ELEVADORES ALAMEX S.A. DE C.V.</p>
-              <p>www.alam.mx</p>
+            <div className="mb-8 p-6 bg-blue-50 rounded-xl border border-blue-100 flex justify-between items-center">
+                <div>
+                    <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wide mb-1">Cliente / Proyecto</h3>
+                    <p className="text-xl font-bold text-blue-900">{data.clientName || 'Nombre del Cliente'}</p>
+                    <p className="text-sm text-gray-600">{data.contactEmail || 'Sin correo de contacto'}</p>
+                </div>
+                <div className="text-right">
+                    <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wide mb-1">Asesor Comercial</h3>
+                    <p className="font-bold text-gray-800">{activeProfile?.full_name || 'Alamex Ventas'}</p>
+                    <p className="text-xs text-gray-500">{activeProfile?.job_title || ''}</p>
+                </div>
             </div>
-          </section>
+
+            <div className="space-y-8">
+                <div>
+                    <h3 className="font-bold text-gray-800 border-b-2 border-gray-100 pb-2 mb-4 text-lg">Especificaciones Técnicas</h3>
+                    <div className="grid grid-cols-2 gap-y-4 gap-x-12 text-sm">
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Cantidad de Equipos</span>
+                            <span className="font-bold text-gray-900 text-lg">{data.quantity}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Modelo</span>
+                            <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">{data.model}</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Capacidad de Carga</span>
+                            <span className="font-bold text-gray-900">{data.capacity} kg</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Velocidad</span>
+                            <span className="font-bold text-gray-900">{data.speed} m/s</span>
+                        </div>
+                        <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Niveles / Paradas</span>
+                            <span className="font-bold text-gray-900">{data.stops}</span>
+                        </div>
+                         <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                            <span className="text-gray-500 font-medium">Recorrido</span>
+                            <span className="font-bold text-gray-900">{data.travel} mm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-16 bg-gray-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
+                <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl"></div>
+                <div className="relative z-10 flex justify-between items-end">
+                    <div>
+                        <p className="text-blue-200 text-sm font-medium mb-1">Inversión Total Estimada</p>
+                        <p className="text-xs text-gray-400">Incluye suministro e instalación</p>
+                    </div>
+                    <div className="text-right">
+                         <h2 className="text-4xl font-black tracking-tight">{formatter.format(total)}</h2>
+                         <p className="text-xs text-yellow-400 font-bold mt-2">+ IVA aplicable</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-12 pt-8 border-t border-gray-100 text-center text-xs text-gray-400">
+                <p>Este documento es una vista previa digital.</p>
+                <p className="mt-1">Para compartir, por favor <strong>descargue el PDF oficial</strong> usando el botón rojo superior y adjúntelo en su correo o WhatsApp.</p>
+            </div>
         </div>
       </div>
     </div>
