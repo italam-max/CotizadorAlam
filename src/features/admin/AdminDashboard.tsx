@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Users, Activity, FileText, DollarSign, 
-  Trash2, UserCheck, UserX, BarChart3, ArrowLeft,
+  Trash2, UserCheck, BarChart3, ArrowLeft,
   UserPlus, X, Save, Loader2
 } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
@@ -178,7 +178,7 @@ export default function AdminDashboard({ onExit }: AdminDashboardProps) {
                             <input required value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})} className="form-input" placeholder="Ej. Juan Pérez" />
                         </InputGroup>
                         <InputGroup label="Cargo / Puesto">
-                            <input required value={newUser.job_title} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" />
+                            <input required value={newUser.jobTitle} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})} className="form-input" placeholder="Ej. Ventas" />
                         </InputGroup>
                     </div>
                     <InputGroup label="Correo Electrónico (Login)">
