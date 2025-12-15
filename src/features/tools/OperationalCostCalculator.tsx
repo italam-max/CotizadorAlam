@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/tools/OperationalCostCalculator.tsx
 import React, { useState, useEffect } from 'react';
 import { DollarSign, ArrowLeft, Clipboard, Info, Truck, Globe, MapPin, Anchor, Hammer, Briefcase, Save, AlertCircle } from 'lucide-react';
-import { QuoteData } from '../../types';
+import type { QuoteData } from '../../types';
 import { CITY_COSTS, INSTALLATION_TIME_TABLE, INSTALLATION_BASE_COSTS, INSTALLATION_TRAVEL_DATA, CAPACITIES } from '../../data/constants';
 import { InputGroup } from '../../components/ui/InputGroup';
 

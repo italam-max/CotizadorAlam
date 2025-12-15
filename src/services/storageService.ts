@@ -1,10 +1,12 @@
 // ARCHIVO: src/services/storageService.ts
-import { QuoteData, AppSettings } from '../types';
+// CORRECCIÓN: Agregamos 'type' en los imports
+import type { QuoteData, AppSettings } from '../types';
 import { INITIAL_SETTINGS, SEED_QUOTES } from '../data/constants';
 
 const DB_KEYS = { QUOTES: 'alamex_quotes_v4', SETTINGS: 'alamex_settings_v1' };
 
 export const BackendService = {
+  // ... (El resto del código es igual, lo importante son los imports de arriba)
   getQuotes: (): QuoteData[] => {
     const data = localStorage.getItem(DB_KEYS.QUOTES);
     return data ? JSON.parse(data) : SEED_QUOTES;

@@ -1,5 +1,6 @@
 // ARCHIVO: src/services/calculations.ts
-import { QuoteData } from '../types';
+// CORRECCIÓN: Agregamos 'type'
+import type { QuoteData } from '../types';
 
 export const calculateMaterials = (data: QuoteData) => {
     const qty = data.quantity || 1;
@@ -57,8 +58,59 @@ export const calculateMaterials = (data: QuoteData) => {
     add('Guides (Guías)', 'Soporte Cabina', '[ARMS-2000] Soporte 2000 Contra Peso Alado Grande con Grapas', (Math.ceil(totalShaftHeight/1.5)) * qty, 'PZA');
     add('Guides (Guías)', 'Soporte Contra Peso', 'Incluído en el Kit de soportes', 0, 'PZA');
 
-    // ... Continúa con el resto de categorías (Cabin, Counterweight, etc.) copiando del App.tsx original ...
-    // Para no hacer este bloque gigante, recuerda copiar todas las secciones (4 a 10) que estaban en tu archivo original.
+    // 4. CABIN / CABINA
+    add('Cabin (Cabina)', 'Cabina', `[04-ASC-CLX102B-${data.doorWidth}-2CC] Cabina Estándar Inox 304 mate, 1000 Kg, ${data.doorWidth}x${data.doorHeight}mm`, qty, 'PZA');
+    add('Cabin (Cabina)', 'Chasis de cabina', 'Kit MRL/G 2 Alamex ajustable 1000 Kg.', qty, 'PZA');
+    add('Cabin (Cabina)', 'COP', `[01-COP-CCAI] COP Serial para Control Alamex Inteligente`, qty, 'PZA');
+    add('Cabin (Cabina)', 'Cable COP', 'Cable cop 10 m. incluido', 1 * qty, 'PZA');
+    add('Cabin (Cabina)', 'Operador de puerta', `[04-2CC-CLX101-${data.doorWidth}x${data.doorHeight}] Puerta de Cabina Inox Mate, 2 hojas, central`, qty, 'PZA');
+    add('Cabin (Cabina)', 'Cortina de luz', '[01-COR-LUZ-0001] Cortina De Luz 110 a 220v.ac /24 v.dc', qty, 'PZA');
+    add('Cabin (Cabina)', 'Aceiteras', '[07-ACE-BASE-0001] Aceitera Con Base', 4 * qty, 'PZA');
+    add('Cabin (Cabina)', 'Zapatas', 'INCLUIDO EN EL KIT DE CHASIS MRL-G', 0, 'PZA');
+    add('Cabin (Cabina)', 'Sensor de carga', '[04-BAS-BDEC-350-22] Báscula debajo de la Cabina 3200 Kg', qty, 'PZA');
+    add('Cabin (Cabina)', 'Paracaídas', '[02-PAR-PRA-0916] Paracaídas Progresivo 2500 Kg Ajustable', qty, 'PZA');
+    add('Cabin (Cabina)', 'Caja de inspección', '[01-CAJ-INSP-ALA-IN] Caja de inspección para control Alamex inteligente', qty, 'PZA');
+    add('Cabin (Cabina)', 'Anclas Cabina', '[02-ANC-NEG-0013] Anclas 13 mm Cable 12-13', 10 * qty, 'PZA');
+
+    // 5. CONTRAPESO
+    add('Counterweight', 'Anclas contra peso', '[02-ANC-NEG-0013] Anclas 13 mm Cable 12-13', 10 * qty, 'PZA');
+    add('Counterweight', 'Marco de contra peso', 'Marco Chasis De Contra Peso MRLG Alamex', 1 * qty, 'PZA');
+    add('Counterweight', 'Contra pesos', '[02-120-0155-760-50] Pieza de Contrapeso 120x155x760mm - 50Kg', 30 * qty, 'PZA');
+
+    // 6. CABLES DE ACERO
+    const tractionRopes = (totalShaftHeight + 10) * 5 * (data.traction === '2:1' ? 2 : (data.traction === '4:1' ? 4 : 1));
+    add('Steel Wires', 'Cables de Acero', '[02-CBL-ACE-0013] Cable de Acero de 13 mm con Núcleo de Fibra Natural SISAL', tractionRopes * qty, 'm.');
+    add('Steel Wires', 'Cable para regulador', '[02-CBL-ACE-0006] Cable De Acero de 6 mm Para Regulador con Núcleo de Fibra Natural SISAL', (totalShaftHeight * 2 + 5) * qty, 'm.');
+    add('Steel Wires', 'Pernos', '[ARMP-HCA1/2] Perro de Hierro para Cable de Acero de 1/2', 60 * qty, 'PZA');
+    add('Steel Wires', 'Pernos Regulador', '[AMRP-HCA1/4] Perro de Hierro para Cable de Acero de 1/4', 6 * qty, 'PZA');
+
+    // 7. CUBE / CUBO
+    add('Cube (Cubo)', 'Cable viajero', '[03-CBL-V40-75MM] Cable Viajero 40 x 0.75 mm. Plano', (travel + 15) * qty, 'm.');
+    add('Cube (Cubo)', 'Cargador Cable viajero', '[02-BSE-CBL-VIAJ] Cargador De Cable Viajero', 4 * qty, 'PZA');
+    add('Cube (Cubo)', 'Cable de cobre #20 AWG', '[03-CBL-C20-AZUL] Cable de Cobre Calibre 20 AWG azul', 100 * qty, 'm.');
+    add('Cube (Cubo)', 'Sensor sismico', '[01-SEN-SDS-S3EJ] Sensor Detector Sísmico-Soporte 3Ejes', 0, 'PZA');
+    add('Cube (Cubo)', 'Arnés de piso (Inter)', '[02-CBL-ECEP-04M-00] Cable de arnés con enchufes para chapas entre pisos 4 metros', (stops - 1) * qty, 'PZA');
+    add('Cube (Cubo)', 'Arnés de piso (Final)', '[02-CBL-ECEP-10M-00] Cable de arnés con enchufes para chapas entre pisos 10 metros', 1 * qty, 'PZA');
+
+    // 8. LANDING / PISOS
+    add('Landing (Pisos)', 'Puertas de piso', `[04-2LC-CLX101-${data.doorWidth}x${data.doorHeight}] Puerta de Piso Acero Inoxidable Mate, 2 hojas`, stops * qty, 'PZA');
+    add('Landing (Pisos)', 'LOP 1 botón', '[01-BOT-LOPS-INT-B1] LOP Serial Para Control Alamex Inteligente con Display Bajada', 2 * qty, 'PZA');
+    add('Landing (Pisos)', 'LOP 2 botones', '[01-BOT-LOPS-INT-2B] LOP Serial Para Control Alamex Inteligente con Display 2 Botones', (stops - 2) * qty, 'PZA');
+    add('Landing (Pisos)', 'Cable LOP 3.5 m.', '[03-CBL-SERI-LOP-06] Cable Serial LOP Para Control Alamex Inteligente LOP-LOP 6m', (stops - 1) * qty, 'PZA');
+    add('Landing (Pisos)', 'Cable LOP 10 m.', '[03-CBL-SERI-LOP-10] Cable Serial LOP Para Control Alamex Inteligente LOP 10m', 1 * qty, 'PZA');
+    add('Landing (Pisos)', 'Alarma contra incendio', '[04-ALA-INCE-110-00] Alarma de incendios', 1 * qty, 'PZA');
+
+    // 9. MAGNET / IMANES
+    add('Magnet (Imanes)', 'Imán Rectangular 10cm', '[ARMI-R10] Imán Rectangular 10 cm', 0, 'PZA');
+    add('Magnet (Imanes)', 'Imán Rectangular 30cm', '[ARMI-R30] Imán Rectangular 30 cm', stops * qty, 'PZA');
+    add('Magnet (Imanes)', 'Imán Redondo', '[ARMI-R] Imán Redondo', 4 * qty, 'PZA');
+
+    // 10. VARIOS
+    add('Varios', 'Taquetes', 'Kit taquete Taquete 12.7 mm (1/2) Plateado', (stops * 11) * qty, 'PZA');
+    add('Varios', 'Micros', '[ARElS-SP-LLG] Switch Sobre Paso Llanta Grande', 2 * qty, 'PZA');
+    add('Varios', 'Puertas Manuales', '[ARElC-T110] Cam Tractil 110 VDC 60X11X6', 0, 'PZA');
+    add('Varios', 'Gomas de cabina', '[ARMG-DTC] Goma Doble Tornillo Para Cabina', 8 * qty, 'PZA');
+    add('Varios', 'Aire acondicionado', '[04-AIR-ACO-220V] Aire Acondicionado Para Elevadores -220V', 0, 'PZA');
 
     return materials;
 };

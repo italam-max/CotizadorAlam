@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/quoter/QuoteWizard.tsx
 import React, { useState, useMemo } from 'react';
 import { ArrowLeft, ArrowRight, Save, Users, Settings, Activity, MoveVertical, Box, Shield, Package, DollarSign, Info, Truck, FileText } from 'lucide-react';
-import { QuoteData } from '../../types';
+import type { QuoteData } from '../../types';
 import { INITIAL_FORM_STATE, ELEVATOR_MODELS, CONTROL_GROUPS, CAPACITIES, SPEEDS, TRACTIONS, SHAFT_TYPES, YES_NO, CABIN_MODELS, FLOOR_FINISHES, DOOR_TYPES, NORMS, DISPLAYS } from '../../data/constants';
 import { calculateMaterials } from '../../services/calculations';
 import { InputGroup } from '../../components/ui/InputGroup';
@@ -65,31 +65,170 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
       case 2:
         return (
           <div className="animate-fadeIn space-y-6 h-full overflow-auto pr-2">
+            {/* SECCIÓN 1: MÁQUINA */}
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <SectionTitle title="1. Máquina y Desempeño" icon={Activity} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {/* ... Inputs de capacidad, personas, velocidad, tracción ... */}
                     <InputGroup label="Capacidad (kg)">
                         <select name="capacity" value={formData.capacity} onChange={handleChange} className="form-select">
                             {CAPACITIES.map(c => <option key={c} value={c}>{c} kg</option>)}
                         </select>
                     </InputGroup>
-                    {/* ... Copia el resto de inputs del paso 2 aquí ... */}
+                    <InputGroup label="Personas">
+                        <input type="number" name="persons" value={formData.persons} onChange={handleChange} className="form-input" />
+                    </InputGroup>
+                    <InputGroup label="Velocidad (m/s)">
+                        <select name="speed" value={formData.speed} onChange={handleChange} className="form-select">
+                            {SPEEDS.map(s => <option key={s} value={s}>{s} m/s</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Tracción">
+                        <select name="traction" value={formData.traction} onChange={handleChange} className="form-select">
+                            {TRACTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                    </InputGroup>
                 </div>
             </div>
-            {/* ... Resto de secciones del paso 2 (Cubo, Cabina, Normativa) ... */}
+
+            {/* SECCIONES 2 y 3: CUBO Y CABINA */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <SectionTitle title="2. Cubo y Recorrido" icon={MoveVertical} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <InputGroup label="Paradas"><input type="number" name="stops" value={formData.stops} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Recorrido (mm)"><input type="number" name="travel" value={formData.travel} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Fosa (Pit)"><input type="number" name="pit" value={formData.pit} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Overhead"><input type="number" name="overhead" value={formData.overhead} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Ancho Cubo"><input type="number" name="shaftWidth" value={formData.shaftWidth} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Fondo Cubo"><input type="number" name="shaftDepth" value={formData.shaftDepth} onChange={handleChange} className="form-input" /></InputGroup>
+                        <InputGroup label="Tipo Cubo">
+                            <select name="shaftType" value={formData.shaftType} onChange={handleChange} className="form-select">
+                                {SHAFT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </InputGroup>
+                        <InputGroup label="Construcción Req.">
+                            <select name="shaftConstructionReq" value={formData.shaftConstructionReq} onChange={handleChange} className="form-select">
+                                {YES_NO.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                        </InputGroup>
+                    </div>
+                </div>
+
+                <div>
+                    <SectionTitle title="3. Cabina y Puertas" icon={Box} />
+                    <div className="space-y-4">
+                        <InputGroup label="Modelo Cabina">
+                            <select name="cabinModel" value={formData.cabinModel} onChange={handleChange} className="form-select text-sm">
+                                {CABIN_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                            </select>
+                        </InputGroup>
+                        <div className="grid grid-cols-2 gap-2">
+                            <InputGroup label="Acabado Cabina"><input name="cabinFinish" value={formData.cabinFinish} onChange={handleChange} className="form-input" /></InputGroup>
+                            <InputGroup label="Piso Cabina">
+                                <select name="cabinFloor" value={formData.cabinFloor} onChange={handleChange} className="form-select">
+                                    {FLOOR_FINISHES.map(f => <option key={f} value={f}>{f}</option>)}
+                                </select>
+                            </InputGroup>
+                        </div>
+                        <InputGroup label="Tipo Puerta">
+                            <select name="doorType" value={formData.doorType} onChange={handleChange} className="form-select">
+                                {DOOR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </InputGroup>
+                        <div className="grid grid-cols-2 gap-2">
+                            <InputGroup label="Ancho Puerta"><input type="number" name="doorWidth" value={formData.doorWidth} onChange={handleChange} className="form-input" /></InputGroup>
+                            <InputGroup label="Alto Puerta"><input type="number" name="doorHeight" value={formData.doorHeight} onChange={handleChange} className="form-input" /></InputGroup>
+                        </div>
+                        <InputGroup label="Acabado Puerta Piso"><input name="floorDoorFinish" value={formData.floorDoorFinish} onChange={handleChange} className="form-input" /></InputGroup>
+                    </div>
+                </div>
+            </div>
+
+            {/* SECCIÓN 4: NORMATIVA */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <SectionTitle title="4. Normativa y Accesorios" icon={Shield} />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <InputGroup label="Norma Aplicada">
+                        <select name="norm" value={formData.norm} onChange={handleChange} className="form-select">
+                            {NORMS.map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Resistencia Fuego">
+                        <select name="fireResistance" value={formData.fireResistance} onChange={handleChange} className="form-select">
+                            {YES_NO.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="LOP (Pasillo)">
+                        <select name="lopModel" value={formData.lopModel} onChange={handleChange} className="form-select">
+                            {DISPLAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="COP (Cabina)">
+                        <select name="copModel" value={formData.copModel} onChange={handleChange} className="form-select">
+                            {DISPLAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Instalación">
+                        <select name="installationReq" value={formData.installationReq} onChange={handleChange} className="form-select">
+                            {YES_NO.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Reg. Contrapeso">
+                        <select name="cwGovernor" value={formData.cwGovernor} onChange={handleChange} className="form-select">
+                            {YES_NO.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Pasamanos">
+                        <select name="handrailType" value={formData.handrailType} onChange={handleChange} className="form-select">
+                            <option value="Redondo">Redondo</option>
+                            <option value="Cuadrado">Cuadrado</option>
+                        </select>
+                    </InputGroup>
+                    <InputGroup label="Nomenclatura"><input name="floorNomenclature" value={formData.floorNomenclature} onChange={handleChange} className="form-input" /></InputGroup>
+                </div>
+            </div>
           </div>
         );
       case 3:
         return (
           <div className="animate-fadeIn h-full flex flex-col gap-6">
-             {/* ... Encabezado y Tabla de Materiales (BOM) ... */}
              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                 <h3 className="text-2xl font-black text-blue-900 flex items-center gap-2">
                   <Package className="text-yellow-500" /> Lista de Materiales (BOM)
                 </h3>
+                <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1 rounded-full font-bold">
+                  Ref: {formData.projectRef}
+                </span>
              </div>
-             
+
+             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Info size={14} /> Resumen de Equipo Propuesto
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                        <span className="block text-gray-500 text-[10px] font-bold uppercase">Modelo</span>
+                        <span className="font-bold text-blue-900">{ELEVATOR_MODELS.find(m => m.id === formData.model)?.label || formData.model}</span>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                        <span className="block text-gray-500 text-[10px] font-bold uppercase">Capacidad</span>
+                        <span className="font-bold text-blue-900">{formData.capacity} kg ({formData.persons} Pers.)</span>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                        <span className="block text-gray-500 text-[10px] font-bold uppercase">Velocidad</span>
+                        <span className="font-bold text-blue-900">{formData.speed} m/s</span>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                        <span className="block text-gray-500 text-[10px] font-bold uppercase">Paradas / Recorrido</span>
+                        <span className="font-bold text-blue-900">{formData.stops} / {(formData.travel / 1000).toFixed(2)} m</span>
+                    </div>
+                    <div className="bg-gray-50 p-2 rounded border border-gray-100">
+                        <span className="block text-gray-500 text-[10px] font-bold uppercase">Cantidad</span>
+                        <span className="font-bold text-blue-900">{formData.quantity} Unidad(es)</span>
+                    </div>
+                </div>
+             </div>
+
              <div className="flex-1 flex gap-6 overflow-hidden">
                  <div className="flex-1 overflow-auto border rounded-xl bg-white shadow-sm">
                     <table className="w-full text-xs">
@@ -130,7 +269,16 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                         <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
                           <DollarSign size={18} className="text-green-600"/> Costos Estimados
                         </h4>
+                        
                         <div className="space-y-4">
+                           <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                              <p className="text-xs text-blue-800 font-bold mb-1 uppercase">Equipos</p>
+                              <div className="flex justify-between items-end">
+                                 <span className="text-sm text-gray-600">{formData.quantity} Unidad(es)</span>
+                                 <span className="font-mono font-bold text-blue-900 text-lg">---</span>
+                              </div>
+                           </div>
+
                            <button 
                              onClick={onOpenOpsCalculator}
                              className="w-full py-3 bg-blue-100 text-blue-800 rounded-lg font-bold shadow-sm hover:bg-blue-200 transition-colors flex items-center justify-center gap-2 text-sm border border-blue-200"
@@ -139,9 +287,10 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                            </button>
                         </div>
                     </div>
-                    {/* ... Botón de vista previa ... */}
+
                     <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-xs text-yellow-900 space-y-2">
                        <p className="font-bold flex items-center gap-2"><Info size={14}/> Siguiente Paso</p>
+                       <p>Al guardar, esta lista de materiales quedará registrada. Podrás generar el PDF oficial desde el panel de administración.</p>
                        <button onClick={onViewPreview} className="w-full mt-2 py-2 bg-blue-900 text-white rounded font-bold shadow hover:bg-blue-800 transition-colors flex items-center justify-center gap-2">
                           <FileText size={16}/> Generar Vista Previa
                        </button>

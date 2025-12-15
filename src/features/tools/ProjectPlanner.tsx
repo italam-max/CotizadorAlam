@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/tools/ProjectPlanner.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, RefreshCcw, Edit3, Activity } from 'lucide-react';
-import { QuoteData } from '../../types';
+import type { QuoteData } from '../../types';
 import { STANDARD_PHASES } from '../../data/constants';
 
 export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteData }) {

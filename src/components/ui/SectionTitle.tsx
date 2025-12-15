@@ -1,6 +1,7 @@
 // ARCHIVO: src/components/ui/SectionTitle.tsx
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
+// CORRECCIÓN: Agregamos 'type' aquí también
+import type { LucideIcon } from 'lucide-react';
 
 interface SectionTitleProps {
   title: string;

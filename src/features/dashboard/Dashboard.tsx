@@ -1,7 +1,8 @@
 // ARCHIVO: src/features/dashboard/Dashboard.tsx
 import React, { useState, useMemo } from 'react';
 import { Search, FileText, CheckCircle, Clock, Edit3, Radar, CheckSquare, Trash2 } from 'lucide-react';
-import { QuoteData } from '../../types';
+// CORRECCIÓN AQUÍ: Agregamos 'type'
+import type { QuoteData } from '../../types';
 import { StatCard } from '../../components/ui/StatCard';
 
 interface DashboardProps {

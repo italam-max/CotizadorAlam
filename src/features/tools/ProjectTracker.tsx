@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/tools/ProjectTracker.tsx
 import React, { useState } from 'react';
 import { Radar, ArrowLeft, Info, MessageCircle, Share2, TrendingUp } from 'lucide-react';
-import { QuoteData } from '../../types';
+import type { QuoteData } from '../../types';
 import { PROJECT_STAGES } from '../../data/constants';
 
 interface ProjectTrackerProps {

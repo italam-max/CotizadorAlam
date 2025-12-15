@@ -1,7 +1,8 @@
 // ARCHIVO: src/components/layout/Sidebar.tsx
 import React, { useMemo } from 'react';
 import { LayoutDashboard, Plus, FileText, BarChart2, DollarSign, Calendar } from 'lucide-react';
-import { QuoteData } from '../../types';
+// CORRECCIÓN AQUÍ: Agregamos 'type'
+import type { QuoteData } from '../../types';
 
 // Componente interno NavButton
 const NavButton = ({ active, onClick, icon, label }: any) => (

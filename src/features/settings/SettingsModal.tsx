@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/settings/SettingsModal.tsx
 import React, { useState } from 'react';
 import { Settings, X, MessageCircle, Database, Mail, Trash2 } from 'lucide-react';
-import { AppSettings } from '../../types';
+import type { AppSettings } from '../../types';
 import { BackendService } from '../../services/storageService';
 import { InputGroup } from '../../components/ui/InputGroup';
 

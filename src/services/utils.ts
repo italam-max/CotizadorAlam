@@ -1,5 +1,6 @@
 // ARCHIVO: src/services/utils.ts
-import { QuoteData, ElevatorModelId } from '../types';
+// CORRECCIÓN: Agregamos 'type' en los imports
+import type { QuoteData } from '../types';
 import { ELEVATOR_MODELS } from '../data/constants';
 
 export const generateQuoteDescription = (data: QuoteData) => {

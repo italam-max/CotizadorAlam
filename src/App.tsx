@@ -15,7 +15,7 @@ import SettingsModal from './features/settings/SettingsModal';
 
 import { BackendService } from './services/storageService';
 import { getNextReference } from './services/utils';
-import { QuoteData } from './types';
+import type { QuoteData } from './types';
 import { INITIAL_FORM_STATE } from './data/constants';
 
 // Importa el CSS aquí (asegúrate de haber movido los estilos inyectados a index.css)

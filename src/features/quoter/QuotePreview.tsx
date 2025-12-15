@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/quoter/QuotePreview.tsx
 import React, { useMemo } from 'react';
 import { ArrowLeft, CheckSquare, Clock, Share2, Mail, Printer } from 'lucide-react';
-import { QuoteData } from '../../types';
+import type { QuoteData } from '../../types';
 import { ELEVATOR_MODELS } from '../../data/constants';
 import { generateQuoteDescription } from '../../services/utils';
 

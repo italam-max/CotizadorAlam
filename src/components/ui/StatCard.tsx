@@ -1,6 +1,7 @@
 // ARCHIVO: src/components/ui/StatCard.tsx
 import React from 'react';
-import { LucideIcon } from 'lucide-react';
+// CORRECCIÓN: Agregamos 'type' aquí
+import type { LucideIcon } from 'lucide-react';
 
 interface StatCardProps {
   label: string;
