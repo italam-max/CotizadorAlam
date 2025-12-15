@@ -21,8 +21,8 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
   const [formData, setFormData] = useState<QuoteData>(initialData || INITIAL_FORM_STATE);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    // Manejo seguro para 'type' que no existe en HTMLSelectElement estándar
+    // CORRECCIÓN: Quitamos 'type' de aquí porque no se usaba
+    const { name, value } = e.target;
     const inputType = (e.target as HTMLInputElement).type; 
     const newData = { ...formData, [name]: inputType === 'number' ? Number(value) : value };
     setFormData(newData);
@@ -32,6 +32,7 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
   const materials = useMemo(() => calculateMaterials(formData), [formData]);
 
   const renderStep = () => {
+    // ... (El resto del contenido del renderStep es igual al anterior)
     switch(step) {
       case 1: 
         return (
@@ -65,7 +66,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
       case 2:
         return (
           <div className="animate-fadeIn space-y-6 h-full overflow-auto pr-2">
-            {/* SECCIÓN 1: MÁQUINA */}
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <SectionTitle title="1. Máquina y Desempeño" icon={Activity} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -90,7 +90,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                 </div>
             </div>
 
-            {/* SECCIONES 2 y 3: CUBO Y CABINA */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <SectionTitle title="2. Cubo y Recorrido" icon={MoveVertical} />
@@ -144,7 +143,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                 </div>
             </div>
 
-            {/* SECCIÓN 4: NORMATIVA */}
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <SectionTitle title="4. Normativa y Accesorios" icon={Shield} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

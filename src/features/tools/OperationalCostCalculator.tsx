@@ -1,6 +1,6 @@
 // ARCHIVO: src/features/tools/OperationalCostCalculator.tsx
-import React, { useState, useEffect } from 'react';
-import { DollarSign, ArrowLeft, Clipboard, Info, Truck, Globe, MapPin, Anchor, Hammer, Briefcase, Save, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react'; // Quitamos React
+import { DollarSign, ArrowLeft, Clipboard, Info, Globe, MapPin, Anchor, Hammer, Briefcase, Save, AlertCircle } from 'lucide-react'; // Quitamos Truck
 import type { QuoteData } from '../../types';
 import { CITY_COSTS, INSTALLATION_TIME_TABLE, INSTALLATION_BASE_COSTS, INSTALLATION_TRAVEL_DATA, CAPACITIES } from '../../data/constants';
 import { InputGroup } from '../../components/ui/InputGroup';
@@ -96,12 +96,93 @@ export default function OperationalCostCalculator({ quote, onBack }: Operational
                 </div>
             )}
           </div>
-          {/* El resto de la UI es idéntica a tu código original... */}
-          {/* ... (Secciones Configuración Logística, Etapa 1, Etapa 2) ... */}
-          {/* Para ahorrar espacio aquí, copia el contenido de los otros divs dentro del grid de tu App.tsx original */}
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+              Configuración Logística
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InputGroup label="Origen del Equipo" helpText="País de procedencia del elevador">
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <select className="form-select pl-10" value={origin} onChange={(e) => setOrigin(e.target.value)}>
+                    <option value="Turquía">Turquía</option>
+                    <option value="China">China</option>
+                  </select>
+                </div>
+              </InputGroup>
+              <InputGroup label="Ciudad de Instalación" helpText="Determina costos de viáticos y traslados">
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <select className="form-select pl-10" value={city} onChange={(e) => setCity(e.target.value)}>
+                    {Object.keys(CITY_COSTS).sort().map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </InputGroup>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+              <Anchor size={18} className="text-purple-600"/> Etapa 1: Descarga en Sitio
+            </h3>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="flex-1">
+                  <p className="font-bold text-gray-800">Maniobras de Carga y Descarga</p>
+                  <p className="text-xs text-gray-500">Incluye carga, traslado local y descarga en sitio.</p>
+                </div>
+                <div className="w-48">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                    <input type="number" className="form-input pl-8 text-right font-bold text-gray-800" placeholder="0.00" value={manualLoadCost || ''} onChange={(e) => setManualLoadCost(parseFloat(e.target.value) || 0)} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex-1">
+                  <p className="font-bold text-blue-900">Viáticos y Traslados de Personal (Descarga)</p>
+                  <p className="text-xs text-blue-600">Calculado automáticamente según tabulador por ciudad ({city}).</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-black text-xl text-blue-900">${travelTotal.toLocaleString()}</p>
+                  <p className="text-[10px] text-blue-500">Traslado: ${cityData.transport.toLocaleString()} + Viáticos: ${cityData.perDiem.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+              <Hammer size={18} className="text-indigo-600"/> Etapa 2: Montaje Mecánico y Eléctrico
+            </h3>
+            <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <div className="flex-1">
+                    <p className="font-bold text-indigo-900">Mano de Obra de Instalación (Base)</p>
+                    <p className="text-xs text-indigo-700 mt-1">
+                        Basado en {localStops} paradas y capacidad de {localCapacity} kg.
+                        <br/>
+                        <span className="font-bold">Tiempo estimado ({origin}): {installData.days} días naturales.</span>
+                    </p>
+                    </div>
+                    <div className="text-right">
+                    <p className="font-black text-2xl text-indigo-900">${installData.baseCost.toLocaleString()}</p>
+                    </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="flex-1">
+                        <p className="font-bold text-gray-800 flex items-center gap-2"><Briefcase size={16}/> Logística de Cuadrilla (2 Técnicos)</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Hospedaje y alimentos por {installData.days} días + Movilización de personal y herramienta.
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="font-black text-xl text-gray-800">${totalInstallationLogistics.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-500">Hospedaje/Alim: ${installTravelCosts.perDiemTotal.toLocaleString()}</p>
+                        <p className="text-[10px] text-gray-500">Movilización: ${installTravelCosts.transportTotal.toLocaleString()}</p>
+                    </div>
+                </div>
+            </div>
+          </div>
         </div>
-        
-        {/* Panel lateral de resumen */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-lg sticky top-6">
             <h3 className="font-black text-xl text-gray-800 mb-6 flex items-center gap-2">Resumen de Costos</h3>

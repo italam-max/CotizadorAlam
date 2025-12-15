@@ -1,5 +1,5 @@
 // ARCHIVO: src/features/quoter/QuotePreview.tsx
-import React, { useMemo } from 'react';
+import { useMemo } from 'react'; // Quitamos React
 import { ArrowLeft, CheckSquare, Clock, Share2, Mail, Printer } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { ELEVATOR_MODELS } from '../../data/constants';
@@ -12,6 +12,7 @@ interface QuotePreviewProps {
 }
 
 export default function QuotePreview({ data, onBack, onUpdateStatus }: QuotePreviewProps) {
+  // ... (El resto del código es igual, solo cambiaron los imports)
   const description = useMemo(() => generateQuoteDescription(data), [data]);
   const estimatedPrice = 1110000;
   const totalPrice = (estimatedPrice * data.quantity) + (data.installationCost || 0);
@@ -50,7 +51,6 @@ export default function QuotePreview({ data, onBack, onUpdateStatus }: QuotePrev
       </div>
 
       <div className="bg-white w-full max-w-4xl shadow-2xl print:shadow-none print:w-full print:max-w-none print:p-0">
-        {/* ... (Contenido visual de la cotización, mismo que el original pero usando data y description) ... */}
         <div className="p-8 border-b-4 border-blue-900 flex justify-between items-end bg-slate-50 print:bg-white">
           <div>
             <h1 className="text-4xl font-black text-slate-300 tracking-widest uppercase mb-1">ALAMEX</h1>
@@ -112,15 +112,89 @@ export default function QuotePreview({ data, onBack, onUpdateStatus }: QuotePrev
               </tfoot>
             </table>
           </section>
-          
+
           <section className="break-inside-avoid">
             <h3 className="font-black text-lg text-blue-900 mb-4 border-b-2 border-yellow-400 pb-1 inline-block uppercase">Especificaciones Técnicas</h3>
             <div className="grid grid-cols-2 gap-x-12 gap-y-4 text-sm">
-                <div className="flex justify-between border-b border-gray-100 pb-1">
-                    <span className="font-bold text-gray-600">Tipo de Equipo</span>
-                    <span className="font-medium">{ELEVATOR_MODELS.find(m => m.id === data.model)?.label}</span>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Tipo de Equipo</span>
+                <span className="font-medium">{ELEVATOR_MODELS.find(m => m.id === data.model)?.label}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Capacidad</span>
+                <span className="font-medium">{data.capacity} kg ({data.persons} personas)</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Velocidad</span>
+                <span className="font-medium">{data.speed} m/s</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Paradas / Niveles</span>
+                <span className="font-medium">{data.stops}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Recorrido</span>
+                <span className="font-medium">{data.travel / 1000} metros</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Dimensiones Cubo</span>
+                <span className="font-medium">{data.shaftWidth} x {data.shaftDepth} mm</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Foso / Overhead</span>
+                <span className="font-medium">{data.pit} mm / {data.overhead} mm</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Control</span>
+                <span className="font-medium">Inteligente {data.controlGroup}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Sistema Tracción</span>
+                <span className="font-medium">{data.traction}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-1">
+                <span className="font-bold text-gray-600">Normativa</span>
+                <span className="font-medium">{data.norm}</span>
+              </div>
+            </div>
+          </section>
+
+          <section className="break-inside-avoid">
+            <h3 className="font-black text-lg text-blue-900 mb-4 border-b-2 border-yellow-400 pb-1 inline-block uppercase">Acabados y Estética</h3>
+            <div className="grid grid-cols-2 gap-8">
+              <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                <h4 className="font-bold text-gray-800 mb-3 uppercase text-xs tracking-wider">Cabina</h4>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-bold text-gray-600">Modelo:</span> {data.cabinModel}</p>
+                  <p><span className="font-bold text-gray-600">Acabado Muros:</span> {data.cabinFinish}</p>
+                  <p><span className="font-bold text-gray-600">Piso:</span> {data.cabinFloor}</p>
+                  <p><span className="font-bold text-gray-600">Pasamanos:</span> {data.handrailType}</p>
+                  <p><span className="font-bold text-gray-600">Botonera (COP):</span> {data.copModel}</p>
                 </div>
-                {/* Puedes agregar más filas aquí si lo deseas, tal como en tu código original */}
+              </div>
+              <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                <h4 className="font-bold text-gray-800 mb-3 uppercase text-xs tracking-wider">Puertas</h4>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-bold text-gray-600">Tipo:</span> {data.doorType}</p>
+                  <p><span className="font-bold text-gray-600">Medidas:</span> {data.doorWidth} x {data.doorHeight} mm</p>
+                  <p><span className="font-bold text-gray-600">Acabado Piso:</span> {data.floorDoorFinish}</p>
+                  <p><span className="font-bold text-gray-600">Seguridad:</span> Cortina Infrarroja 64 LEDs</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="text-xs text-gray-600 space-y-2 pt-6 border-t border-gray-300 break-inside-avoid">
+            <h4 className="font-bold text-gray-800 uppercase">Condiciones Comerciales Generales:</h4>
+            <ul className="list-disc pl-4 space-y-1">
+              <li><strong>Tiempo de Entrega:</strong> Variable, sujeto a firma de contrato y aprobación de planos.</li>
+              <li><strong>Garantía:</strong> 12 meses contra defectos de fabricación, sujeta a mantenimiento autorizado.</li>
+              <li><strong>Mantenimiento:</strong> Se incluyen 3 meses de servicio preventivo gratuito post-entrega.</li>
+              <li><strong>Vigencia:</strong> Esta propuesta tiene una validez de 30 días hábiles.</li>
+            </ul>
+            <div className="mt-8 pt-8 text-center">
+              <p className="font-bold text-blue-900">ELEVADORES ALAMEX S.A. DE C.V.</p>
+              <p>www.alam.mx</p>
             </div>
           </section>
         </div>

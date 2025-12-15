@@ -1,7 +1,6 @@
 // ARCHIVO: src/features/dashboard/Dashboard.tsx
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react'; // Quitamos React
 import { Search, FileText, CheckCircle, Clock, Edit3, Radar, CheckSquare, Trash2 } from 'lucide-react';
-// CORRECCIÓN AQUÍ: Agregamos 'type'
 import type { QuoteData } from '../../types';
 import { StatCard } from '../../components/ui/StatCard';
 
@@ -15,6 +14,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ quotes, onEdit, onDelete, onUpdateStatus, onTrack }: DashboardProps) {
+  // ... (El resto del código es igual, solo cambia la primera línea)
   const [filter, setFilter] = useState('');
   const filtered = useMemo(() => quotes.filter((q) => q.clientName.toLowerCase().includes(filter.toLowerCase()) || q.projectRef.toLowerCase().includes(filter.toLowerCase())), [quotes, filter]);
 
