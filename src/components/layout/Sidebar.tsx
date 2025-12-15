@@ -1,60 +1,163 @@
 // ARCHIVO: src/components/layout/Sidebar.tsx
-import React, { useMemo } from 'react';
-import { LayoutDashboard, Plus, FileText, BarChart2, DollarSign, Calendar } from 'lucide-react';
-// CORRECCIÓN AQUÍ: Agregamos 'type'
+import { 
+  LayoutDashboard, 
+  PlusCircle, 
+  Calculator, 
+  Calendar, 
+  BarChart, 
+  Activity, 
+  FileText,
+  FolderOpen // <--- Icono nuevo para el historial
+} from 'lucide-react';
 import type { QuoteData } from '../../types';
-
-// Componente interno NavButton
-const NavButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} className={`w-full text-left px-4 py-3 text-sm rounded-lg flex items-center gap-3 font-bold transition-all ${active ? 'bg-blue-50 text-blue-900 border border-blue-100 shadow-sm translate-x-1' : 'text-gray-500 hover:text-blue-900 hover:bg-gray-50'}`}>
-    <span className={active ? 'text-yellow-500' : 'text-gray-400'}>{icon}</span> {label}
-  </button>
-);
 
 interface SidebarProps {
   currentView: string;
   setView: (view: any) => void;
   onNewQuote: () => void;
   quotes: QuoteData[];
-  onSelectQuote: (q: QuoteData) => void;
+  onSelectQuote: (quote: QuoteData) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onNewQuote, quotes, onSelectQuote }) => {
-  const recentQuotes = useMemo(() => {
-    return quotes.slice(0, 5); 
-  }, [quotes]);
+export function Sidebar({ currentView, setView, onNewQuote, quotes, onSelectQuote }: SidebarProps) {
+  
+  // Filtramos las últimas 5 cotizaciones para la lista rápida
+  const recentQuotes = quotes.slice(0, 5);
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 flex-shrink-0 space-y-6 print:hidden h-full">
-      <nav className="space-y-2 flex-1 overflow-y-auto pr-2">
-        <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Menú Principal</p>
-        <NavButton active={currentView === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="Dashboard" />
-        
-        <div className="my-4 border-t border-gray-200"></div>
-        
-        <button onClick={onNewQuote} className="w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-bold text-blue-900 bg-yellow-400 hover:bg-yellow-300 shadow-md mb-2 group transition-all">
-          <Plus size={20} className="group-hover:rotate-90 transition-transform"/> Nueva Cotización
+    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 h-[calc(100vh-100px)] sticky top-24 rounded-xl shadow-sm overflow-hidden print:hidden">
+      
+      {/* Botón Principal de Acción (Nueva Cotización) */}
+      <div className="p-4 border-b border-gray-100">
+        <button
+          onClick={onNewQuote}
+          className="w-full bg-blue-900 text-white hover:bg-yellow-400 hover:text-blue-900 py-3 px-4 rounded-xl flex items-center justify-center gap-2 font-bold shadow-lg shadow-blue-900/20 transition-all transform hover:scale-[1.02] active:scale-95 border border-transparent hover:border-yellow-500"
+        >
+          <PlusCircle size={20} />
+          Nueva Cotización
         </button>
+      </div>
 
-        <div className="space-y-1 mb-6">
-            <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 mt-2">Activas / Recientes</p>
-            {recentQuotes.map((q) => (
-                <button 
-                    key={q.id}
-                    onClick={() => onSelectQuote(q)}
-                    className="w-full text-left px-4 py-2 text-xs rounded-md flex items-center gap-2 text-gray-600 hover:bg-white hover:text-blue-800 hover:shadow-sm transition-all border border-transparent hover:border-gray-200 truncate"
-                >
-                    <FileText size={14} className="flex-shrink-0 text-blue-400" /> 
-                    <span className="truncate">{q.projectRef || 'Sin Referencia'}</span>
-                </button>
-            ))}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6 scrollbar-thin scrollbar-thumb-gray-200">
+        
+        {/* SECCIÓN PRINCIPAL */}
+        <div className="space-y-1">
+          <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            Principal
+          </p>
+          
+          <button
+            onClick={() => setView('dashboard')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'dashboard'
+                ? 'bg-blue-50 text-blue-900'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-blue-900'
+            }`}
+          >
+            <LayoutDashboard size={20} />
+            Panel de Control
+          </button>
+
+          {/* --- NUEVO BOTÓN: HISTORIAL --- */}
+          <button
+            onClick={() => setView('quotes-list')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'quotes-list'
+                ? 'bg-blue-50 text-blue-900'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-blue-900'
+            }`}
+          >
+            <FolderOpen size={20} />
+            Historial Cotizaciones
+          </button>
         </div>
 
-        <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-6">Herramientas</p>
-        <NavButton active={currentView === 'traffic-tool'} onClick={() => setView('traffic-tool')} icon={<BarChart2 size={18} />} label="Analizador de Tráfico" />
-        <NavButton active={currentView === 'ops-calculator'} onClick={() => setView('ops-calculator')} icon={<DollarSign size={18} />} label="Calculadora de Costos" />
-        <NavButton active={currentView === 'planner'} onClick={() => setView('planner')} icon={<Calendar size={18} />} label="Planificación" />
+        {/* SECCIÓN HERRAMIENTAS */}
+        <div className="space-y-1">
+          <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            Herramientas Alamex
+          </p>
+          
+          <button
+            onClick={() => setView('traffic-tool')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'traffic-tool'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
+            }`}
+          >
+            <BarChart size={20} />
+            Análisis de Tráfico
+          </button>
+
+          <button
+            onClick={() => setView('planner')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'planner'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
+            }`}
+          >
+            <Calendar size={20} />
+            Planeador Gantt
+          </button>
+
+          <button
+            onClick={() => setView('tracker')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'tracker'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
+            }`}
+          >
+            <Activity size={20} />
+            Rastreador Pedidos
+          </button>
+
+          <button
+            onClick={() => setView('ops-calculator')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              currentView === 'ops-calculator'
+                ? 'bg-blue-900 text-white shadow-md'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-blue-900'
+            }`}
+          >
+            <Calculator size={20} />
+            Costos Operativos
+          </button>
+        </div>
+
+        {/* SECCIÓN RECIENTES */}
+        <div className="space-y-1">
+          <p className="px-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            Recientes
+          </p>
+          {recentQuotes.length === 0 ? (
+            <p className="px-3 text-sm text-gray-400 italic">Sin actividad reciente</p>
+          ) : (
+            recentQuotes.map((quote) => (
+              <button
+                key={quote.id}
+                onClick={() => onSelectQuote(quote)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 hover:text-blue-900 transition-colors group text-left"
+              >
+                <FileText size={16} className="text-slate-400 group-hover:text-blue-500" />
+                <span className="truncate">{quote.projectRef}</span>
+              </button>
+            ))
+          )}
+        </div>
+
       </nav>
+
+      {/* Footer del Sidebar */}
+      <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <p className="text-xs font-medium text-gray-500">Sistema Operativo</p>
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1 pl-5">v1.5.0 Stable</p>
+      </div>
     </aside>
   );
-};
+}

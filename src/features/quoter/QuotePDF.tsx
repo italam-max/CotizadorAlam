@@ -1,13 +1,13 @@
 // ARCHIVO: src/features/quoter/QuotePDF.tsx
-import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import type { QuoteData, UserProfile } from '../../types';
 
-// Definimos los estilos (parecido a CSS pero para PDF)
+// Definimos los estilos
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#ffffff',
     fontFamily: 'Helvetica',
-    padding: 0, // Sin padding para que la portada llene todo
+    padding: 0,
   },
   // --- PORTADA ---
   coverContainer: {
@@ -103,9 +103,6 @@ const styles = StyleSheet.create({
     minHeight: 24,
     alignItems: 'center',
   },
-  tableHeader: {
-    backgroundColor: '#f1f5f9',
-  },
   tableCellKey: {
     width: '40%',
     padding: 5,
@@ -126,7 +123,7 @@ const styles = StyleSheet.create({
   priceBox: {
     marginTop: 20,
     padding: 15,
-    backgroundColor: '#eff6ff', // Azul muy claro
+    backgroundColor: '#eff6ff', 
     borderWidth: 1,
     borderColor: '#bfdbfe',
     borderRadius: 4,
@@ -170,17 +167,14 @@ export const QuotePDFDocument = ({ data, userProfile }: QuotePDFProps) => {
       {/* --- PÁGINA 1: PORTADA --- */}
       <Page size="LETTER" style={styles.page}>
         <View style={styles.coverContainer}>
-          {/* Encabezado Azul */}
           <View style={styles.coverHeader}>
              <Text style={styles.coverTitle}>ALAMEX</Text>
-             {/* Nota: Asegúrate de que esta imagen exista en public/images/logo-alamex.png */}
-             {/* React-PDF necesita rutas absolutas o URLs completas a veces, pero probemos relativa primero */}
+             {/* Asegúrate de tener logo-alamex.png en public/images/ */}
              <Image src="/images/logo-alamex.png" style={styles.coverLogo} /> 
           </View>
 
-          {/* Cuerpo Central */}
           <View style={styles.coverBody}>
-            {/* Imagen del Elevador (Decorativa) */}
+            {/* Asegúrate de tener fondo-login.jpg en public/images/ */}
             <Image src="/images/fondo-login.jpg" style={styles.coverImage} />
             
             <Text style={styles.projectTitle}>
@@ -194,7 +188,6 @@ export const QuotePDFDocument = ({ data, userProfile }: QuotePDFProps) => {
             </Text>
           </View>
 
-          {/* Pie Amarillo */}
           <View style={styles.coverFooter}></View>
         </View>
       </Page>
@@ -202,7 +195,6 @@ export const QuotePDFDocument = ({ data, userProfile }: QuotePDFProps) => {
       {/* --- PÁGINA 2: DETALLES --- */}
       <Page size="LETTER" style={styles.page}>
         <View style={styles.contentContainer}>
-            {/* Encabezado pequeña en pág 2 */}
             <View style={styles.headerSmall}>
                 <Text style={{fontSize: 10, color: '#64748b'}}>Ref: {data.projectRef}</Text>
                 <Text style={{fontSize: 10, color: '#64748b'}}>Pag. 2</Text>
@@ -211,14 +203,16 @@ export const QuotePDFDocument = ({ data, userProfile }: QuotePDFProps) => {
             <Text style={styles.sectionTitle}>Especificaciones Técnicas</Text>
 
             <View style={styles.table}>
+                {/* Aquí pasamos los valores. Si alguno es undefined, el componente TableRow lo manejará */}
                 <TableRow label="Tipo de Equipo" value={data.type === 'new' ? 'Elevador Nuevo' : 'Modernización'} />
                 <TableRow label="Modelo" value={data.model} />
                 <TableRow label="Capacidad" value={`${data.capacity} kg / ${data.persons} personas`} />
                 <TableRow label="Velocidad" value={`${data.speed} m/s`} />
-                <TableRow label="Niveles / Paradas" value={String(data.stops)} />
+                <TableRow label="Niveles / Paradas" value={data.stops} />
                 <TableRow label="Recorrido" value={`${data.travel} mm`} />
                 <TableRow label="Ancho de Puerta" value={`${data.doorWidth} mm`} />
-                <TableRow label="Máquina" value={data.machineType} />
+                {/* Usamos || para enviar un string por defecto si es undefined */}
+                <TableRow label="Máquina" value={data.machineType || 'No especificado'} />
             </View>
 
             <Text style={styles.sectionTitle}>Propuesta Económica</Text>
@@ -245,10 +239,12 @@ export const QuotePDFDocument = ({ data, userProfile }: QuotePDFProps) => {
   );
 };
 
-// Componente auxiliar para filas de tabla
-const TableRow = ({ label, value }: { label: string, value: string }) => (
+// --- CORRECCIÓN CLAVE AQUÍ ---
+// Actualizamos el tipo de 'value' para aceptar string, number o undefined.
+// Si llega undefined o null, mostramos un guion '-'.
+const TableRow = ({ label, value }: { label: string, value: string | number | undefined }) => (
     <View style={styles.tableRow}>
         <Text style={styles.tableCellKey}>{label}</Text>
-        <Text style={styles.tableCellValue}>{value}</Text>
+        <Text style={styles.tableCellValue}>{value ? String(value) : '-'}</Text>
     </View>
 );

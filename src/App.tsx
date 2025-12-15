@@ -8,8 +8,10 @@ import { supabase } from './supabaseClient';
 import LoginPage from './components/auth/LoginPage';
 import { Sidebar } from './components/layout/Sidebar';
 import Dashboard from './features/dashboard/Dashboard';
+import QuotesList from './features/dashboard/QuotesList';
 import QuoteWizard from './features/quoter/QuoteWizard';
 import QuotePreview from './features/quoter/QuotePreview';
+import QuoteTicket from './features/dashboard/QuoteTicket'; // <--- 1. IMPORTAR TICKET
 import TrafficAnalyzer from './features/tools/TrafficAnalyzer';
 import ProjectPlanner from './features/tools/ProjectPlanner';
 import OperationalCostCalculator from './features/tools/OperationalCostCalculator';
@@ -36,7 +38,9 @@ export default function ElevatorQuoter() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // --- ESTADOS DE LA APP ---
-  const [view, setView] = useState<'dashboard' | 'quoter' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker' | 'admin'>('dashboard');
+  // 2. AGREGAR 'ticket' A LOS TIPOS DE VISTA
+  const [view, setView] = useState<'dashboard' | 'quoter' | 'quotes-list' | 'ticket' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker' | 'admin'>('dashboard');
+  
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notification, setNotification] = useState<{msg: string, type: 'success'|'error'} | null>(null);
   const [quotes, setQuotes] = useState<QuoteData[]>([]);
@@ -157,7 +161,8 @@ export default function ElevatorQuoter() {
       const newQuote: QuoteData = {
           ...INITIAL_FORM_STATE,
           projectRef: newRef,
-          projectDate: new Date().toISOString().split('T')[0]
+          projectDate: new Date().toISOString().split('T')[0],
+          status: 'Borrador'
       };
       setWorkingQuote(newQuote);
       setView('quoter');
@@ -177,6 +182,7 @@ export default function ElevatorQuoter() {
       projectRef: `Análisis ${data.type}`, 
       model: data.speed > 2.5 ? 'MR' : 'MRL-G',
       controlGroup: data.elevators > 1 ? (data.elevators === 2 ? 'Duplex' : `Grupo ${data.elevators}`) : 'Simplex',
+      status: 'Borrador'
     };
     setWorkingQuote(quoteData); 
     setView('quoter');
@@ -186,6 +192,23 @@ export default function ElevatorQuoter() {
   const handleTrackQuote = (quote: QuoteData) => {
     setWorkingQuote(quote);
     setView('tracker');
+  };
+
+  const handleOpenTracker = () => {
+    setWorkingQuote(INITIAL_FORM_STATE); 
+    setView('tracker');
+  };
+
+  // --- LÓGICA INTELIGENTE DE SELECCIÓN ---
+  const handleSelectQuoteSmart = (quote: QuoteData) => {
+    setWorkingQuote(quote);
+    
+    // 3. CAMBIO CLAVE: Si ya está enviada, vamos al Ticket, no directo al Preview
+    if (quote.status === 'Borrador') {
+        setView('quoter');
+    } else {
+        setView('ticket'); // <--- AHORA VA AL TICKET
+    }
   };
 
   // --- RENDERIZADO ---
@@ -205,7 +228,6 @@ export default function ElevatorQuoter() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-800 relative">
-      {/* HEADER CORPORATIVO */}
       <header className="bg-blue-900 border-b border-blue-800 px-6 py-4 flex justify-between items-center shadow-lg sticky top-0 z-20 print:hidden">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('dashboard')}>
           <div className="bg-white p-1.5 rounded-lg shadow-md hover:rotate-6 transition-transform">
@@ -218,8 +240,6 @@ export default function ElevatorQuoter() {
         </div>
         
         <div className="flex items-center gap-4">
-          
-          {/* BOTÓN DE ADMIN - SOLO VISIBLE SI ES ADMIN */}
           {userProfile?.role === 'admin' && (
             <button 
               onClick={() => setView('admin')}
@@ -228,30 +248,20 @@ export default function ElevatorQuoter() {
               <Shield size={14} /> TI Admin
             </button>
           )}
-
-          {/* INFORMACIÓN DEL USUARIO */}
           <div className="hidden md:flex flex-col items-end mr-2 cursor-pointer" onClick={() => setSettingsOpen(true)}>
-             <span className="text-sm font-bold text-white leading-none">
-                {userProfile?.full_name || 'Usuario Alamex'}
-             </span>
-             <span className="text-[10px] text-blue-300 font-medium uppercase tracking-wide">
-                {userProfile?.job_title || session.user.email}
-             </span>
+             <span className="text-sm font-bold text-white leading-none">{userProfile?.full_name || 'Usuario Alamex'}</span>
+             <span className="text-[10px] text-blue-300 font-medium uppercase tracking-wide">{userProfile?.job_title || session.user.email}</span>
           </div>
-          
           <div className="w-10 h-10 rounded-full bg-yellow-500 text-blue-900 flex items-center justify-center font-black border-2 border-blue-800 shadow-sm cursor-pointer hover:bg-yellow-400 transition-colors" onClick={() => setSettingsOpen(true)} title="Mi Perfil">
               {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : <User size={20}/>}
           </div>
-          
           <div className="w-px h-6 bg-blue-800 mx-1"></div>
-          
           <button onClick={handleLogout} title="Cerrar Sesión" className="p-2 hover:bg-red-900/30 rounded-full text-red-400 transition-colors">
             <LogOut size={24} />
           </button>
         </div>
       </header>
 
-      {/* NOTIFICACIONES */}
       {notification && (
         <div className={`fixed top-24 right-6 z-50 animate-bounce-in bg-white border-l-4 shadow-xl px-6 py-4 rounded flex items-center gap-3 ${notification.type === 'error' ? 'border-red-500 text-red-700' : 'border-green-500 text-green-700'}`}>
           {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle size={20} />}
@@ -259,24 +269,27 @@ export default function ElevatorQuoter() {
         </div>
       )}
 
-      {/* CUERPO PRINCIPAL */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto md:p-6 gap-6 print:p-0 print:w-full print:max-w-none">
-        {/* SIDEBAR SE OCULTA EN VISTA ADMIN */}
+        
         {view !== 'admin' && (
           <Sidebar 
               currentView={view} 
-              setView={setView} 
+              setView={(v) => {
+                  if (v === 'tracker') handleOpenTracker();
+                  else setView(v);
+              }} 
               onNewQuote={handleCreateNewQuote}
               quotes={quotes}
-              onSelectQuote={(q: QuoteData) => { setWorkingQuote(q); setView('quoter'); }}
+              onSelectQuote={handleSelectQuoteSmart} 
           />
         )}
         
         <main className={`flex-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden min-h-[600px] relative transition-all print:shadow-none print:border-none print:rounded-none ${view === 'admin' ? 'w-full max-w-none' : ''}`}>
+          
           {view === 'dashboard' && (
             <Dashboard 
               quotes={quotes} 
-              onEdit={(q: QuoteData) => { setWorkingQuote(q); setView('quoter'); }} 
+              onEdit={handleSelectQuoteSmart} 
               onDelete={handleDeleteQuote} 
               onCreate={handleCreateNewQuote} 
               onUpdateStatus={handleUpdateStatus} 
@@ -284,7 +297,10 @@ export default function ElevatorQuoter() {
             />
           )}
 
-          {/* VISTA DE ADMIN */}
+          {view === 'quotes-list' && (
+            <QuotesList onSelect={handleSelectQuoteSmart} />
+          )}
+
           {view === 'admin' && (
             <AdminDashboard 
                 onExit={() => setView('dashboard')} 
@@ -302,6 +318,31 @@ export default function ElevatorQuoter() {
               onOpenOpsCalculator={() => setView('ops-calculator')} 
             />
           )}
+
+          {/* --- 4. AÑADIR VISTA DE TICKET --- */}
+          {view === 'ticket' && (
+            <QuoteTicket 
+                quote={workingQuote} 
+                onBack={() => setView('quotes-list')} 
+                onViewDocument={() => setView('preview')} 
+                onUpdateQuote={(updated) => {
+                    setWorkingQuote(updated);
+                    setQuotes(prev => prev.map(q => q.id === updated.id ? updated : q));
+                }}
+            />
+          )}
+          
+          {/* --- ACTUALIZAR VISTA PREVIEW --- */}
+          {view === 'preview' && (
+            <QuotePreview 
+              data={workingQuote} 
+              // Si es borrador vuelve al editor, si no vuelve al ticket
+              onBack={() => workingQuote.status === 'Borrador' ? setView('quoter') : setView('ticket')} 
+              onUpdateStatus={handleUpdateStatus} 
+              // Nueva prop para conectar el botón "Confirmar Envío"
+              onGoToTicket={() => setView('ticket')} 
+            />
+          )}
           
           {view === 'traffic-tool' && (
             <TrafficAnalyzer onQuote={handleTrafficQuote} />
@@ -309,14 +350,6 @@ export default function ElevatorQuoter() {
           
           {view === 'planner' && (
             <ProjectPlanner currentQuote={workingQuote} />
-          )}
-          
-          {view === 'preview' && (
-            <QuotePreview 
-              data={workingQuote} 
-              onBack={() => setView('quoter')} 
-              onUpdateStatus={handleUpdateStatus} 
-            />
           )}
           
           {view === 'ops-calculator' && (
@@ -328,7 +361,7 @@ export default function ElevatorQuoter() {
           
           {view === 'tracker' && (
             <ProjectTracker 
-              quote={workingQuote} 
+              quote={workingQuote.id ? workingQuote : null} 
               onUpdate={handleUpdateStage} 
               onBack={() => setView('dashboard')} 
             />

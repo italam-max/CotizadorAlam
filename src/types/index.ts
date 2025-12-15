@@ -4,6 +4,7 @@ export type ElevatorModelId = 'MR' | 'MRL-L' | 'MRL-G' | 'HYD' | 'PLAT' | 'CAR';
 
 export interface QuoteData {
   id: number | string;
+  // Mantenemos tus estatus originales
   status: 'Borrador' | 'Sincronizado' | 'Enviada' | 'Por Seguimiento';
   currentStage?: string;
   
@@ -14,6 +15,13 @@ export interface QuoteData {
   projectRef: string;
   projectDate: string;
   
+  // --- AGREGADO PARA CORREGIR ERROR DE PDF ---
+  contactEmail?: string; // El PDF busca esto, puede ser igual a clientEmail
+  type?: string;         // 'new' (Nuevo) o 'mod' (Modernización)
+  machineType?: string;  // Tipo de máquina para el PDF
+  currency?: 'MXN' | 'USD'; // Moneda para el PDF
+  // ------------------------------------------
+
   // 2. Especificaciones Básicas
   quantity: number;
   model: ElevatorModelId;
@@ -57,6 +65,9 @@ export interface QuoteData {
 
   // 7. Costos
   installationCost?: number;
+  
+  // Datos Internos
+  user_id?: string; // Importante para el sistema de usuarios
 
   // Campos calculados
   materials?: any; 
@@ -64,15 +75,30 @@ export interface QuoteData {
 }
 
 export interface AppSettings {
+  // Ajustamos para incluir los campos nuevos de configuración que agregamos (SMTP)
+  companyName?: string;
+  ivaRate?: number;
+  currency?: 'MXN' | 'USD';
+  adminEmail?: string;
+  
   whapiToken: string;
+  
   odooUrl: string;
   odooDb: string;
   odooUser: string;
   odooKey: string;
-  zeptoHost: string;
-  zeptoPort: string;
-  zeptoUser: string;
-  zeptoPass: string;
+  
+  // Campos SMTP nuevos
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+
+  // Mantener los que ya tenías
+  zeptoHost?: string;
+  zeptoPort?: string;
+  zeptoUser?: string;
+  zeptoPass?: string;
 }
 
 export interface ProjectPhase {
@@ -95,6 +121,6 @@ export interface UserProfile {
   job_title: string | null;
   department: string | null;
   avatar_url: string | null;
-  role?: 'admin' | 'user'; // Nuevo
-  active?: boolean;        // Nuevo
+  role?: 'admin' | 'user'; 
+  active?: boolean;        
 }
