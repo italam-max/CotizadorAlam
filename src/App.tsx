@@ -1,6 +1,6 @@
 // ARCHIVO: src/App.tsx
 import { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, LogOut, Loader2, User, Shield } from 'lucide-react';
+import { Settings, AlertCircle, CheckCircle, LogOut, Loader2, User, Shield } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 
@@ -15,7 +15,7 @@ import ProjectPlanner from './features/tools/ProjectPlanner';
 import OperationalCostCalculator from './features/tools/OperationalCostCalculator';
 import ProjectTracker from './features/tools/ProjectTracker';
 import SettingsModal from './features/settings/SettingsModal';
-import AdminDashboard from './features/admin/AdminDashboard'; // <--- NUEVO IMPORT
+import AdminDashboard from './features/admin/AdminDashboard';
 
 // Servicios
 import { BackendService } from './services/storageService';
@@ -36,7 +36,6 @@ export default function ElevatorQuoter() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // --- ESTADOS DE LA APP ---
-  // Agregamos 'admin' a las vistas posibles
   const [view, setView] = useState<'dashboard' | 'quoter' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker' | 'admin'>('dashboard');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [notification, setNotification] = useState<{msg: string, type: 'success'|'error'} | null>(null);
@@ -287,7 +286,10 @@ export default function ElevatorQuoter() {
 
           {/* VISTA DE ADMIN */}
           {view === 'admin' && (
-            <AdminDashboard onExit={() => setView('dashboard')} />
+            <AdminDashboard 
+                onExit={() => setView('dashboard')} 
+                onNotify={showNotify}
+            />
           )}
           
           {view === 'quoter' && (
