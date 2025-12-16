@@ -156,7 +156,7 @@ export function Sidebar({ currentView, setView, onNewQuote, quotes, onSelectQuot
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
             <p className="text-xs font-medium text-gray-500">Sistema Operativo</p>
         </div>
-        <p className="text-[10px] text-gray-400 mt-1 pl-5">v1.5.0 Stable</p>
+        <p className="text-[10px] text-gray-400 mt-1 pl-5">v1.6.1 Stable</p>
       </div>
     </aside>
   );
