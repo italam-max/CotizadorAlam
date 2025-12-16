@@ -1,6 +1,10 @@
 // ARCHIVO: src/features/quoter/QuoteWizard.tsx
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, ArrowRight, Save, Users, Settings, Activity, MoveVertical, Box, Shield, Package, DollarSign, Info, Truck, FileText } from 'lucide-react';
+import { 
+  ArrowLeft, ArrowRight, Save, Users, Settings, Activity, 
+  MoveVertical, Box, Shield, Package, DollarSign, Info, 
+  Truck, FileText, CheckCircle, Eye 
+} from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { INITIAL_FORM_STATE, ELEVATOR_MODELS, CONTROL_GROUPS, CAPACITIES, SPEEDS, TRACTIONS, SHAFT_TYPES, YES_NO, CABIN_MODELS, FLOOR_FINISHES, DOOR_TYPES, NORMS, DISPLAYS } from '../../data/constants';
 import { calculateMaterials } from '../../services/calculations';
@@ -19,9 +23,9 @@ interface QuoteWizardProps {
 export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onViewPreview, onOpenOpsCalculator }: QuoteWizardProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<QuoteData>(initialData || INITIAL_FORM_STATE);
+  const [isSaving, setIsSaving] = useState(false); 
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    // CORRECCIÓN: Quitamos 'type' de aquí porque no se usaba
     const { name, value } = e.target;
     const inputType = (e.target as HTMLInputElement).type; 
     const newData = { ...formData, [name]: inputType === 'number' ? Number(value) : value };
@@ -31,8 +35,22 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
 
   const materials = useMemo(() => calculateMaterials(formData), [formData]);
 
+  // --- LÓGICA DE SEGURIDAD ---
+  const handleSafePreview = () => {
+    if (!formData.id) {
+        alert("⚠️ ¡Atención!\n\nDebes GUARDAR la cotización antes de generar la Vista Previa para asegurar que se genere el folio correctamente.");
+        return;
+    }
+    onViewPreview();
+  };
+
+  const handleManualSave = () => {
+      setIsSaving(true);
+      onSave(formData);
+      setTimeout(() => setIsSaving(false), 800);
+  };
+
   const renderStep = () => {
-    // ... (El resto del contenido del renderStep es igual al anterior)
     switch(step) {
       case 1: 
         return (
@@ -286,12 +304,10 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                         </div>
                     </div>
 
-                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-xs text-yellow-900 space-y-2">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-2">
                        <p className="font-bold flex items-center gap-2"><Info size={14}/> Siguiente Paso</p>
-                       <p>Al guardar, esta lista de materiales quedará registrada. Podrás generar el PDF oficial desde el panel de administración.</p>
-                       <button onClick={onViewPreview} className="w-full mt-2 py-2 bg-blue-900 text-white rounded font-bold shadow hover:bg-blue-800 transition-colors flex items-center justify-center gap-2">
-                          <FileText size={16}/> Generar Vista Previa
-                       </button>
+                       <p>Recuerda <strong>GUARDAR</strong> tu proyecto usando el botón superior.</p>
+                       {/* Botón de vista previa arriba, aquí solo información */}
                     </div>
                  </div>
              </div>
@@ -302,23 +318,67 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-6 border-b flex justify-between items-center bg-gray-50">
-         <div className="flex items-center gap-3">
-             <button onClick={onExit} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><ArrowLeft size={20}/></button>
+    <div className="flex flex-col h-full bg-slate-50">
+      {/* --- HEADER NUEVO (CON BOTONES DE ACCIÓN) --- */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
+         <div className="flex items-center gap-4">
+             <button onClick={onExit} className="text-slate-500 hover:text-blue-900 font-bold text-sm">Cancelar</button>
+             <div className="h-6 w-px bg-slate-300"></div>
              <div>
-                <h2 className="text-xl font-bold text-blue-900">{formData.id ? 'Editar Cotización' : 'Nueva Cotización'}</h2>
-                <p className="text-xs text-gray-500">Paso {step} de 3</p>
+                <h2 className="font-black text-slate-800 text-lg leading-none">{formData.projectRef || 'Nueva Cotización'}</h2>
+                <p className="text-xs text-slate-400 font-medium mt-1">
+                   {formData.id ? 'Guardado en sistema' : 'Borrador no guardado'}
+                </p>
              </div>
          </div>
-         <div className="flex gap-2">
-             {[1, 2, 3].map(n => <div key={n} className={`w-3 h-3 rounded-full transition-colors ${step >= n ? 'bg-blue-600' : 'bg-gray-300'}`} />)}
+
+         {/* BOTONES SUPERIORES */}
+         <div className="flex items-center gap-3">
+             <button 
+                onClick={handleManualSave}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-sm ${
+                    formData.id 
+                    ? 'bg-white text-blue-900 border border-blue-200 hover:bg-blue-50' 
+                    : 'bg-yellow-400 text-blue-900 hover:bg-yellow-300 animate-pulse'
+                }`}
+             >
+                {isSaving ? <CheckCircle size={18} className="animate-bounce"/> : <Save size={18} />}
+                {isSaving ? 'Guardando...' : 'Guardar Proyecto'}
+             </button>
+
+             <button 
+                onClick={handleSafePreview}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm text-white shadow-md transition-all ${
+                    formData.id 
+                    ? 'bg-blue-900 hover:bg-blue-800' 
+                    : 'bg-slate-400 cursor-not-allowed opacity-70'
+                }`}
+                title={!formData.id ? "Guarda primero para habilitar" : "Ver documento"}
+             >
+                <Eye size={18} /> Vista Previa
+             </button>
          </div>
       </div>
-      <div className="flex-1 p-8 overflow-hidden flex flex-col">{renderStep()}</div>
-      <div className="p-6 border-t bg-gray-50 flex justify-between">
+      
+      {/* CUERPO DEL WIZARD */}
+      <div className="flex-1 p-8 overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
+         {/* Pasos visuales */}
+         <div className="flex gap-2 justify-center mb-6">
+             {[1, 2, 3].map(n => <div key={n} className={`w-3 h-3 rounded-full transition-colors ${step >= n ? 'bg-blue-600' : 'bg-gray-300'}`} />)}
+         </div>
+
+         {renderStep()}
+      </div>
+
+      {/* FOOTER DE NAVEGACIÓN */}
+      <div className="p-6 border-t bg-white flex justify-between sticky bottom-0 z-10">
           <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1} className="btn-secondary disabled:opacity-50">Anterior</button>
-          {step < 3 ? <button onClick={() => setStep(s => s + 1)} className="btn-primary">Siguiente <ArrowRight size={18}/></button> : <button onClick={() => onSave(formData)} className="btn-primary bg-green-600 hover:bg-green-700 text-white"><Save size={18}/> Guardar</button>}
+          
+          <div className="flex items-center gap-4">
+              {step < 3 && (
+                  <button onClick={() => setStep(s => s + 1)} className="btn-primary">Siguiente <ArrowRight size={18}/></button> 
+              )}
+          </div>
       </div>
     </div>
   );
