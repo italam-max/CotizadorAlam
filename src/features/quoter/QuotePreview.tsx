@@ -13,8 +13,9 @@ import { QuotePDFDocument } from './QuotePDF';
 interface QuotePreviewProps {
   data: QuoteData;
   onBack: () => void;
-  onUpdateStatus: (id: number | string, status: QuoteData['status']) => void;
-  onGoToTicket: () => void; // <--- NUEVA PROP RECIBIDA
+  // Permitimos que retorne Promise para poder hacer await
+  onUpdateStatus: (id: number | string, status: QuoteData['status']) => Promise<void> | void; 
+  onGoToTicket: () => void;
 }
 
 export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicket }: QuotePreviewProps) {
@@ -23,7 +24,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
   const [processing, setProcessing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cargamos el perfil
+  // Cargamos el perfil del usuario para el PDF
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) UserService.getProfile(user.id).then(setActiveProfile);
@@ -46,42 +47,44 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
 
   // --- COMPARTIR ---
   const handleShareWhatsapp = () => {
-    const text = `Hola, te comparto la cotización...`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    const text = `Hola, te comparto la cotización *${data.projectRef}* para el proyecto de elevadores Alamex.\n\nModelo: ${data.model}\nNiveles: ${data.stops}\nInversión: ${formatter.format(total)}\n\n(Adjunto encontrarás el PDF oficial con los detalles técnicos).`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
     setShowShareMenu(false);
   };
 
   const handleShareEmail = () => {
-    window.location.href = `mailto:?subject=Cotización&body=...`;
+    const subject = `Cotización Alamex: ${data.projectRef}`;
+    const body = `Estimado cliente,\n\nAdjunto encontrará la propuesta técnica y económica para su proyecto de elevadores.\n\nResumen:\nModelo: ${data.model}\nNiveles: ${data.stops}\nTotal: ${formatter.format(total)}\n\nQuedo atento a sus comentarios.\n\nSaludos cordiales.`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setShowShareMenu(false);
   };
 
-  // --- LÓGICA DEL BOTÓN DE SEGUIMIENTO (TICKET) ---
+  // --- LÓGICA CORREGIDA DEL BOTÓN DE CONFIRMACIÓN ---
   const handleConfirmSent = async () => {
       setProcessing(true);
       
-      // 1. Si sigue en borrador, la pasamos a 'Enviada'
-      if (data.status === 'Borrador') {
-          try {
-              const { error } = await supabase
-                  .from('quotes')
-                  .update({ status: 'Enviada' })
-                  .eq('id', data.id);
+      try {
+          // 1. Si sigue en borrador, pedimos al Padre (App.tsx) que actualice el estatus.
+          // NO hacemos el update directo a Supabase aquí para evitar conflictos.
+          if (data.status === 'Borrador') {
+              if (!data.id) {
+                  throw new Error("La cotización no tiene ID. Guárdala antes de enviar.");
+              }
               
-              if (error) throw error;
-              
-              // Actualizamos el estado global en App.tsx
-              onUpdateStatus(data.id!, 'Enviada');
-          } catch (err) {
-              console.error(err);
-              alert("Error al actualizar estatus");
-              setProcessing(false);
-              return;
+              // Esperamos a que App.tsx termine de actualizar la BD
+              await onUpdateStatus(data.id, 'Enviada');
           }
+          
+          // 2. Si todo salió bien, nos vamos al Ticket (CRM)
+          onGoToTicket();
+
+      } catch (err) {
+          console.error("Error en handleConfirmSent:", err);
+          alert("Hubo un error al actualizar el estatus. Por favor revisa tu conexión.");
+      } finally {
+          setProcessing(false);
       }
-      
-      // 2. Nos vamos al Ticket (CRM)
-      onGoToTicket();
   };
 
   return (
@@ -97,7 +100,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
         {/* Lado Derecho: Acciones */}
         <div className="flex flex-wrap gap-3 justify-end items-center w-full md:w-auto">
             
-            {/* BOTÓN 1: COMPARTIR (Lo mantuvimos igual) */}
+            {/* BOTÓN 1: COMPARTIR */}
             <div className="relative" ref={menuRef}>
                 <button 
                     onClick={() => setShowShareMenu(!showShareMenu)}
@@ -105,25 +108,37 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
                 >
                     <Share2 size={18} />
                     <span>Compartir</span>
-                    <ChevronDown size={16} />
+                    <ChevronDown size={16} className={`transition-transform duration-200 ${showShareMenu ? 'rotate-180' : ''}`} />
                 </button>
-                {/* Menú Desplegable ... (Mismo código de antes) */}
+                {/* Menú Desplegable */}
                 {showShareMenu && (
                     <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden animate-slideUp origin-top-right ring-1 ring-black/5">
                         <div className="p-1.5">
                              <div className="hover:bg-slate-50 rounded-lg transition-colors">
-                                <PDFDownloadLink document={<QuotePDFDocument data={data} userProfile={activeProfile} />} fileName={`Cotizacion-${data.projectRef}.pdf`} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700">
-                                    {({ loading }) => (loading ? '...' : <><FileText className="text-red-500" size={18} /> Descargar PDF</>)}
+                                <PDFDownloadLink 
+                                    document={<QuotePDFDocument data={data} userProfile={activeProfile} />} 
+                                    fileName={`Cotizacion-${data.projectRef}.pdf`} 
+                                    className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700"
+                                >
+                                    {({ loading }) => (
+                                        loading 
+                                        ? <><Loader2 className="animate-spin text-blue-900" size={18}/> Preparando...</> 
+                                        : <><FileText className="text-red-500" size={18} /> Descargar PDF</>
+                                    )}
                                 </PDFDownloadLink>
                             </div>
-                            <button onClick={handleShareEmail} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left"><Mail className="text-blue-500" size={18} /> Correo</button>
-                            <button onClick={handleShareWhatsapp} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left"><MessageCircle className="text-green-500" size={18} /> WhatsApp</button>
+                            <button onClick={handleShareEmail} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
+                                <Mail className="text-blue-500" size={18} /> Enviar por Correo
+                            </button>
+                            <button onClick={handleShareWhatsapp} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
+                                <MessageCircle className="text-green-500" size={18} /> Enviar por WhatsApp
+                            </button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* BOTÓN 2: CONFIRMAR Y SEGUIR (EL NUEVO BRIDGE) */}
+            {/* BOTÓN 2: CONFIRMAR Y SEGUIR (El Bridge al Ticket) */}
             <button 
                 onClick={handleConfirmSent}
                 disabled={processing}
@@ -144,7 +159,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
         </div>
       </div>
 
-      {/* --- VISTA PREVIA DEL DOCUMENTO (IGUAL QUE ANTES) --- */}
+      {/* --- VISTA PREVIA DEL DOCUMENTO --- */}
       <div className="flex-1 overflow-auto bg-gray-500/10 p-4 md:p-8 rounded-xl border border-gray-300 shadow-inner flex justify-center z-0">
         <div className="bg-white w-full max-w-3xl min-h-[800px] shadow-2xl p-10 md:p-12 relative">
             
