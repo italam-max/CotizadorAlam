@@ -79,10 +79,11 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
           // 2. Si todo salió bien, nos vamos al Ticket (CRM)
           onGoToTicket();
 
-      } catch (err) {
-          console.error("Error en handleConfirmSent:", err);
-          alert("Hubo un error al actualizar el estatus. Por favor revisa tu conexión.");
-      } finally {
+        } catch (err: any) {
+            console.error("EL ERROR REAL ES:", err);
+            // Esto nos mostrará el mensaje técnico de la base de datos
+            alert(`ERROR TÉCNICO:\n${err.message || JSON.stringify(err)}`);
+        } finally {
           setProcessing(false);
       }
   };
