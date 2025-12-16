@@ -81,6 +81,7 @@ export interface AppSettings {
   currency?: 'MXN' | 'USD';
   adminEmail?: string;
   whapiToken: string;
+  whapiUrl: string;
   odooUrl: string;
   odooDb: string;
   odooUser: string;

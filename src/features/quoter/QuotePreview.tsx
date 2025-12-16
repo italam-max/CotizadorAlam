@@ -7,6 +7,7 @@ import {
 import type { QuoteData, UserProfile } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { UserService } from '../../services/userService';
+import { WhatsappService } from '../../services/whatsappService'; // <--- Importamos el servicio de Whapi
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { QuotePDFDocument } from './QuotePDF';
 
@@ -24,7 +25,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
   const [processing, setProcessing] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cargamos el perfil del usuario para el PDF
+  // Cargamos el perfil del usuario para mostrarlo en el PDF
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
         if (user) UserService.getProfile(user.id).then(setActiveProfile);
@@ -45,8 +46,8 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
   const total = (data.price || 0) * (data.quantity || 1);
 
-  // --- COMPARTIR ---
-  const handleShareWhatsapp = () => {
+  // --- COMPARTIR MANUAL (Cliente Web) ---
+  const handleShareWhatsappManual = () => {
     const text = `Hola, te comparto la cotización *${data.projectRef}* para el proyecto de elevadores Alamex.\n\nModelo: ${data.model}\nNiveles: ${data.stops}\nInversión: ${formatter.format(total)}\n\n(Adjunto encontrarás el PDF oficial con los detalles técnicos).`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
@@ -60,30 +61,49 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
     setShowShareMenu(false);
   };
 
-  // --- LÓGICA CORREGIDA DEL BOTÓN DE CONFIRMACIÓN ---
+  // --- CONFIRMACIÓN DE ENVÍO + WHATSAPP AUTOMÁTICO (API) ---
   const handleConfirmSent = async () => {
       setProcessing(true);
       
       try {
-          // 1. Si sigue en borrador, pedimos al Padre (App.tsx) que actualice el estatus.
-          // NO hacemos el update directo a Supabase aquí para evitar conflictos.
+          // 1. Preguntar si se desea enviar WhatsApp Automático
+          const shouldSendWa = window.confirm(
+            "¿Deseas enviar un WhatsApp automático de confirmación al cliente ahora mismo?"
+          );
+
+          if (shouldSendWa) {
+             if (data.clientPhone) {
+                 try {
+                     const msg = `Estimado/a *${data.clientName}*, le confirmamos que hemos enviado la cotización *${data.projectRef}* a su correo electrónico.\n\nDetalles rápidos:\nModelo: ${data.model}\nNiveles: ${data.stops}\n\nQuedamos atentos a sus comentarios.\n\nAtte: *Equipo Alamex*.`;
+                     
+                     // Llamada a la API de Whapi
+                     await WhatsappService.sendMessage(data.clientPhone, msg);
+                     alert("✅ Mensaje enviado por WhatsApp exitosamente.");
+                 } catch (waError: any) {
+                     console.error("Error WhatsApp:", waError);
+                     alert(`⚠️ No se pudo enviar el WhatsApp: ${waError.message}\n\nContinuaremos con el proceso.`);
+                 }
+             } else {
+                 alert("⚠️ El cliente no tiene número telefónico registrado en la cotización.");
+             }
+          }
+
+          // 2. Actualizar estatus en Base de Datos (Si sigue en borrador)
+          // Delegamos al padre (App.tsx) para evitar conflictos de RLS
           if (data.status === 'Borrador') {
               if (!data.id) {
                   throw new Error("La cotización no tiene ID. Guárdala antes de enviar.");
               }
-              
-              // Esperamos a que App.tsx termine de actualizar la BD
               await onUpdateStatus(data.id, 'Enviada');
           }
           
-          // 2. Si todo salió bien, nos vamos al Ticket (CRM)
+          // 3. Ir al Ticket de Gestión
           onGoToTicket();
 
-        } catch (err: any) {
-            console.error("EL ERROR REAL ES:", err);
-            // Esto nos mostrará el mensaje técnico de la base de datos
-            alert(`ERROR TÉCNICO:\n${err.message || JSON.stringify(err)}`);
-        } finally {
+      } catch (err: any) {
+          console.error("Error en handleConfirmSent:", err);
+          alert(`Hubo un error al actualizar el estatus: ${err.message}`);
+      } finally {
           setProcessing(false);
       }
   };
@@ -101,7 +121,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
         {/* Lado Derecho: Acciones */}
         <div className="flex flex-wrap gap-3 justify-end items-center w-full md:w-auto">
             
-            {/* BOTÓN 1: COMPARTIR */}
+            {/* BOTÓN 1: COMPARTIR (Manual) */}
             <div className="relative" ref={menuRef}>
                 <button 
                     onClick={() => setShowShareMenu(!showShareMenu)}
@@ -131,15 +151,15 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
                             <button onClick={handleShareEmail} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
                                 <Mail className="text-blue-500" size={18} /> Enviar por Correo
                             </button>
-                            <button onClick={handleShareWhatsapp} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
-                                <MessageCircle className="text-green-500" size={18} /> Enviar por WhatsApp
+                            <button onClick={handleShareWhatsappManual} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
+                                <MessageCircle className="text-green-500" size={18} /> WhatsApp Web
                             </button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* BOTÓN 2: CONFIRMAR Y SEGUIR (El Bridge al Ticket) */}
+            {/* BOTÓN 2: CONFIRMAR Y SEGUIR (Automatización) */}
             <button 
                 onClick={handleConfirmSent}
                 disabled={processing}

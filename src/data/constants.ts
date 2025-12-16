@@ -5,6 +5,7 @@ import { Ruler, Hammer, Truck, HardHat, CheckCircle2 } from 'lucide-react';
 // Configuraciones iniciales
 export const INITIAL_SETTINGS: AppSettings = {
   whapiToken: '',
+  whapiUrl: 'https://gate.whapi.cloud/messages/text', // <--- URL POR DEFECTO
   odooUrl: 'https://odoo.alam.mx',
   odooDb: 'alamex_prod',
   odooUser: '',
