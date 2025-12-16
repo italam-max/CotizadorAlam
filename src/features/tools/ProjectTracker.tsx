@@ -312,7 +312,8 @@ const getPhaseColor = (stage?: string) => {
     }
 }
 
-const getPhaseBg = () => {
+// ESTA ERA LA QUE CAUSABA EL ERROR. Asegúrate de que tenga "stage?: string"
+const getPhaseBg = (stage?: string) => {
     // Retorna clases para el fondo de la tarjeta de detalle
     return 'bg-slate-50 border-slate-200'; 
 }

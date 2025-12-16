@@ -4,8 +4,10 @@ export type ElevatorModelId = 'MR' | 'MRL-L' | 'MRL-G' | 'HYD' | 'PLAT' | 'CAR';
 
 export interface QuoteData {
   id: number | string;
-  // Mantenemos tus estatus originales
-  status: 'Borrador' | 'Sincronizado' | 'Enviada' | 'Por Seguimiento';
+  
+  // AQUÍ ESTÁ EL CAMBIO IMPORTANTE: AGREGAMOS 'Aprobada' y 'Rechazada'
+  status: 'Borrador' | 'Sincronizado' | 'Enviada' | 'Por Seguimiento' | 'Aprobada' | 'Rechazada';
+  
   currentStage?: string;
   
   // 1. Contacto & Proyecto
@@ -15,12 +17,11 @@ export interface QuoteData {
   projectRef: string;
   projectDate: string;
   
-  // --- AGREGADO PARA CORREGIR ERROR DE PDF ---
-  contactEmail?: string; // El PDF busca esto, puede ser igual a clientEmail
-  type?: string;         // 'new' (Nuevo) o 'mod' (Modernización)
-  machineType?: string;  // Tipo de máquina para el PDF
-  currency?: 'MXN' | 'USD'; // Moneda para el PDF
-  // ------------------------------------------
+  // Campos opcionales para PDF y Preview
+  contactEmail?: string; 
+  type?: string;         
+  machineType?: string;  
+  currency?: 'MXN' | 'USD'; 
 
   // 2. Especificaciones Básicas
   quantity: number;
@@ -67,7 +68,7 @@ export interface QuoteData {
   installationCost?: number;
   
   // Datos Internos
-  user_id?: string; // Importante para el sistema de usuarios
+  user_id?: string;
 
   // Campos calculados
   materials?: any; 
@@ -75,26 +76,19 @@ export interface QuoteData {
 }
 
 export interface AppSettings {
-  // Ajustamos para incluir los campos nuevos de configuración que agregamos (SMTP)
   companyName?: string;
   ivaRate?: number;
   currency?: 'MXN' | 'USD';
   adminEmail?: string;
-  
   whapiToken: string;
-  
   odooUrl: string;
   odooDb: string;
   odooUser: string;
   odooKey: string;
-  
-  // Campos SMTP nuevos
   smtpHost?: string;
   smtpPort?: number;
   smtpUser?: string;
   smtpPass?: string;
-
-  // Mantener los que ya tenías
   zeptoHost?: string;
   zeptoPort?: string;
   zeptoUser?: string;
