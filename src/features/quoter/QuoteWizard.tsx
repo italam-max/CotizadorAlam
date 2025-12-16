@@ -1,9 +1,9 @@
 // ARCHIVO: src/features/quoter/QuoteWizard.tsx
 import React, { useState, useMemo } from 'react';
 import { 
-  ArrowLeft, ArrowRight, Save, Users, Settings, Activity, 
+  ArrowRight, Save, Users, Settings, Activity, 
   MoveVertical, Box, Shield, Package, DollarSign, Info, 
-  Truck, FileText, CheckCircle, Eye 
+  Truck, CheckCircle, Eye 
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { INITIAL_FORM_STATE, ELEVATOR_MODELS, CONTROL_GROUPS, CAPACITIES, SPEEDS, TRACTIONS, SHAFT_TYPES, YES_NO, CABIN_MODELS, FLOOR_FINISHES, DOOR_TYPES, NORMS, DISPLAYS } from '../../data/constants';
