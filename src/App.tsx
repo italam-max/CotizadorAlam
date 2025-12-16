@@ -8,10 +8,10 @@ import { supabase } from './supabaseClient';
 import LoginPage from './components/auth/LoginPage';
 import { Sidebar } from './components/layout/Sidebar';
 import Dashboard from './features/dashboard/Dashboard';
-import QuotesList from './features/dashboard/QuotesList';
+// QuotesList eliminado de aquí
 import QuoteWizard from './features/quoter/QuoteWizard';
 import QuotePreview from './features/quoter/QuotePreview';
-import QuoteTicket from './features/dashboard/QuoteTicket'; // <--- 1. IMPORTAR TICKET
+import QuoteTicket from './features/dashboard/QuoteTicket';
 import TrafficAnalyzer from './features/tools/TrafficAnalyzer';
 import ProjectPlanner from './features/tools/ProjectPlanner';
 import OperationalCostCalculator from './features/tools/OperationalCostCalculator';
@@ -38,7 +38,6 @@ export default function ElevatorQuoter() {
   const [authLoading, setAuthLoading] = useState(true);
 
   // --- ESTADOS DE LA APP ---
-  // 2. AGREGAR 'ticket' A LOS TIPOS DE VISTA
   const [view, setView] = useState<'dashboard' | 'quoter' | 'quotes-list' | 'ticket' | 'traffic-tool' | 'planner' | 'preview' | 'ops-calculator' | 'tracker' | 'admin'>('dashboard');
   
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -203,11 +202,11 @@ export default function ElevatorQuoter() {
   const handleSelectQuoteSmart = (quote: QuoteData) => {
     setWorkingQuote(quote);
     
-    // 3. CAMBIO CLAVE: Si ya está enviada, vamos al Ticket, no directo al Preview
+    // Si ya está enviada, vamos al Ticket
     if (quote.status === 'Borrador') {
         setView('quoter');
     } else {
-        setView('ticket'); // <--- AHORA VA AL TICKET
+        setView('ticket');
     }
   };
 
@@ -297,9 +296,7 @@ export default function ElevatorQuoter() {
             />
           )}
 
-          {view === 'quotes-list' && (
-            <QuotesList onSelect={handleSelectQuoteSmart} />
-          )}
+          {/* VISTA QuotesList ELIMINADA */}
 
           {view === 'admin' && (
             <AdminDashboard 
@@ -319,11 +316,10 @@ export default function ElevatorQuoter() {
             />
           )}
 
-          {/* --- 4. AÑADIR VISTA DE TICKET --- */}
           {view === 'ticket' && (
             <QuoteTicket 
                 quote={workingQuote} 
-                onBack={() => setView('quotes-list')} 
+                onBack={() => setView('dashboard')} 
                 onViewDocument={() => setView('preview')} 
                 onUpdateQuote={(updated) => {
                     setWorkingQuote(updated);
@@ -332,14 +328,11 @@ export default function ElevatorQuoter() {
             />
           )}
           
-          {/* --- ACTUALIZAR VISTA PREVIEW --- */}
           {view === 'preview' && (
             <QuotePreview 
               data={workingQuote} 
-              // Si es borrador vuelve al editor, si no vuelve al ticket
               onBack={() => workingQuote.status === 'Borrador' ? setView('quoter') : setView('ticket')} 
               onUpdateStatus={handleUpdateStatus} 
-              // Nueva prop para conectar el botón "Confirmar Envío"
               onGoToTicket={() => setView('ticket')} 
             />
           )}

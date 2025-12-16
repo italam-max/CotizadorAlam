@@ -1,4 +1,3 @@
-// ARCHIVO: src/features/quoter/QuoteWizard.tsx
 import React, { useState, useMemo } from 'react';
 import { 
   ArrowRight, Save, Users, Settings, Activity, 
@@ -20,6 +19,7 @@ interface QuoteWizardProps {
   onOpenOpsCalculator: () => void;
 }
 
+// CORRECCIÓN: Aseguramos que tenga 'export default' aquí
 export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onViewPreview, onOpenOpsCalculator }: QuoteWizardProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<QuoteData>(initialData || INITIAL_FORM_STATE);
@@ -307,7 +307,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-2">
                        <p className="font-bold flex items-center gap-2"><Info size={14}/> Siguiente Paso</p>
                        <p>Recuerda <strong>GUARDAR</strong> tu proyecto usando el botón superior.</p>
-                       {/* Botón de vista previa arriba, aquí solo información */}
                     </div>
                  </div>
              </div>
