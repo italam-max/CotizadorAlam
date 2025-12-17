@@ -8,10 +8,12 @@ import { supabase } from './supabaseClient';
 import LoginPage from './components/auth/LoginPage';
 import { Sidebar } from './components/layout/Sidebar';
 import Dashboard from './features/dashboard/Dashboard';
-// QuotesList eliminado de aquí
 import QuoteWizard from './features/quoter/QuoteWizard';
 import QuotePreview from './features/quoter/QuotePreview';
-import QuoteTicket from './features/dashboard/QuoteTicket';
+
+// --- CAMBIO: Usamos el nuevo TicketView ---
+import TicketView from './features/tickets/TicketView'; 
+
 import TrafficAnalyzer from './features/tools/TrafficAnalyzer';
 import ProjectPlanner from './features/tools/ProjectPlanner';
 import OperationalCostCalculator from './features/tools/OperationalCostCalculator';
@@ -134,6 +136,7 @@ export default function ElevatorQuoter() {
       await BackendService.updateQuoteStatus(id, status);
       const updatedList = await BackendService.getQuotes();
       setQuotes(updatedList);
+      // Si estamos trabajando en esa cotización, actualizamos el estado local también
       if (workingQuote.id === id) {
           setWorkingQuote(prev => ({ ...prev, status }));
       }
@@ -202,10 +205,11 @@ export default function ElevatorQuoter() {
   const handleSelectQuoteSmart = (quote: QuoteData) => {
     setWorkingQuote(quote);
     
-    // Si ya está enviada, vamos al Ticket
+    // Si sigue en borrador, vamos al cotizador para editar
     if (quote.status === 'Borrador') {
         setView('quoter');
     } else {
+        // Si ya fue enviada, vamos al Nuevo Ticket de Chat
         setView('ticket');
     }
   };
@@ -296,8 +300,6 @@ export default function ElevatorQuoter() {
             />
           )}
 
-          {/* VISTA QuotesList ELIMINADA */}
-
           {view === 'admin' && (
             <AdminDashboard 
                 onExit={() => setView('dashboard')} 
@@ -316,15 +318,12 @@ export default function ElevatorQuoter() {
             />
           )}
 
+          {/* VISTA TICKET ACTUALIZADA (CHAT/WHAPI) */}
           {view === 'ticket' && (
-            <QuoteTicket 
+            <TicketView 
                 quote={workingQuote} 
-                onBack={() => setView('dashboard')} 
-                onViewDocument={() => setView('preview')} 
-                onUpdateQuote={(updated) => {
-                    setWorkingQuote(updated);
-                    setQuotes(prev => prev.map(q => q.id === updated.id ? updated : q));
-                }}
+                onBack={() => setView('dashboard')}
+                onUpdateStatus={handleUpdateStatus}
             />
           )}
           

@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+// ARCHIVO: src/features/quoter/QuoteWizard.tsx
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowRight, Save, Users, Settings, Activity, 
   MoveVertical, Box, Shield, Package, DollarSign, Info, 
-  Truck, CheckCircle, Eye 
+  Truck, FileText, CheckCircle, Eye 
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { INITIAL_FORM_STATE, ELEVATOR_MODELS, CONTROL_GROUPS, CAPACITIES, SPEEDS, TRACTIONS, SHAFT_TYPES, YES_NO, CABIN_MODELS, FLOOR_FINISHES, DOOR_TYPES, NORMS, DISPLAYS } from '../../data/constants';
@@ -19,11 +20,28 @@ interface QuoteWizardProps {
   onOpenOpsCalculator: () => void;
 }
 
-// CORRECCIÓN: Aseguramos que tenga 'export default' aquí
 export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onViewPreview, onOpenOpsCalculator }: QuoteWizardProps) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<QuoteData>(initialData || INITIAL_FORM_STATE);
-  const [isSaving, setIsSaving] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // --- NUEVO ESTADO PARA EL REDIRECCIONAMIENTO AUTOMÁTICO ---
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  // Sincronizar datos si vienen del padre (ej. cuando se crea el ID en DB)
+  useEffect(() => {
+    if (initialData) {
+        setFormData(curr => ({ ...curr, ...initialData }));
+        
+        // TRUCO DE TESTER:
+        // Si estábamos esperando redireccionar y YA tenemos ID, nos vamos a la vista previa
+        if (pendingRedirect && initialData.id) {
+            setPendingRedirect(false); // Apagamos la bandera
+            setIsSaving(false);        // Quitamos spinner
+            onViewPreview();           // ¡Vámonos!
+        }
+    }
+  }, [initialData, pendingRedirect]); // Escuchamos cambios en initialData
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -35,19 +53,42 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
 
   const materials = useMemo(() => calculateMaterials(formData), [formData]);
 
-  // --- LÓGICA DE SEGURIDAD ---
-  const handleSafePreview = () => {
-    if (!formData.id) {
-        alert("⚠️ ¡Atención!\n\nDebes GUARDAR la cotización antes de generar la Vista Previa para asegurar que se genere el folio correctamente.");
-        return;
-    }
-    onViewPreview();
-  };
+  // --- ACCIONES ---
 
+  // 1. Guardado Manual (Botón de arriba)
   const handleManualSave = () => {
       setIsSaving(true);
       onSave(formData);
+      // Solo efecto visual
       setTimeout(() => setIsSaving(false), 800);
+  };
+
+  // 2. Guardado y Redirección (Botón Final)
+  const handleSaveAndPreview = () => {
+    setIsSaving(true);
+    onSave(formData);
+
+    if (formData.id) {
+        // Caso A: Ya existía (es edición), nos vamos directo con un pequeño delay visual
+        setTimeout(() => {
+            setIsSaving(false);
+            onViewPreview();
+        }, 500);
+    } else {
+        // Caso B: Es NUEVA. Activamos la espera para cuando llegue el ID
+        setPendingRedirect(true);
+    }
+  };
+
+  const handleSafePreview = () => {
+    if (!formData.id) {
+        // Si intenta dar clic arriba sin guardar, le ofrecemos guardar y salir
+        if(confirm("Para ver la vista previa primero debes guardar. ¿Guardar ahora?")) {
+            handleSaveAndPreview();
+        }
+        return;
+    }
+    onViewPreview();
   };
 
   const renderStep = () => {
@@ -59,7 +100,7 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup label="Cliente"><input name="clientName" value={formData.clientName} onChange={handleChange} className="form-input" /></InputGroup>
               <InputGroup label="Referencia"><input name="projectRef" value={formData.projectRef} onChange={handleChange} className="form-input" /></InputGroup>
-              <InputGroup label="Teléfono"><input name="clientPhone" value={formData.clientPhone} onChange={handleChange} className="form-input" /></InputGroup>
+              <InputGroup label="Teléfono (Móvil)"><input name="clientPhone" placeholder="5512345678" value={formData.clientPhone} onChange={handleChange} className="form-input" /></InputGroup>
               <InputGroup label="Email"><input name="clientEmail" value={formData.clientEmail} onChange={handleChange} className="form-input" /></InputGroup>
             </div>
             
@@ -306,7 +347,7 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
 
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-900 space-y-2">
                        <p className="font-bold flex items-center gap-2"><Info size={14}/> Siguiente Paso</p>
-                       <p>Recuerda <strong>GUARDAR</strong> tu proyecto usando el botón superior.</p>
+                       <p>Al guardar, generaremos el folio y podrás descargar el PDF oficial para el cliente.</p>
                     </div>
                  </div>
              </div>
@@ -318,7 +359,7 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
-      {/* --- HEADER NUEVO (CON BOTONES DE ACCIÓN) --- */}
+      {/* HEADER */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
          <div className="flex items-center gap-4">
              <button onClick={onExit} className="text-slate-500 hover:text-blue-900 font-bold text-sm">Cancelar</button>
@@ -352,7 +393,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
                     ? 'bg-blue-900 hover:bg-blue-800' 
                     : 'bg-slate-400 cursor-not-allowed opacity-70'
                 }`}
-                title={!formData.id ? "Guarda primero para habilitar" : "Ver documento"}
              >
                 <Eye size={18} /> Vista Previa
              </button>
@@ -361,21 +401,29 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
       
       {/* CUERPO DEL WIZARD */}
       <div className="flex-1 p-8 overflow-hidden flex flex-col max-w-7xl mx-auto w-full">
-         {/* Pasos visuales */}
          <div className="flex gap-2 justify-center mb-6">
              {[1, 2, 3].map(n => <div key={n} className={`w-3 h-3 rounded-full transition-colors ${step >= n ? 'bg-blue-600' : 'bg-gray-300'}`} />)}
          </div>
-
          {renderStep()}
       </div>
 
-      {/* FOOTER DE NAVEGACIÓN */}
+      {/* FOOTER */}
       <div className="p-6 border-t bg-white flex justify-between sticky bottom-0 z-10">
           <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1} className="btn-secondary disabled:opacity-50">Anterior</button>
           
           <div className="flex items-center gap-4">
-              {step < 3 && (
+              {step < 3 ? (
                   <button onClick={() => setStep(s => s + 1)} className="btn-primary">Siguiente <ArrowRight size={18}/></button> 
+              ) : (
+                  // BOTÓN FINAL MEJORADO
+                  <button 
+                      onClick={handleSaveAndPreview}
+                      disabled={isSaving} 
+                      className="btn-primary bg-green-600 hover:bg-green-700 text-white shadow-lg flex items-center gap-2"
+                  >
+                      {isSaving ? <CheckCircle className="animate-bounce" size={18}/> : <FileText size={18}/>} 
+                      {isSaving ? 'Generando...' : 'Guardar y Generar PDF'}
+                  </button>
               )}
           </div>
       </div>

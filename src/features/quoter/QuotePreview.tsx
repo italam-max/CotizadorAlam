@@ -2,13 +2,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Loader2, MessageCircle, Mail, Share2, 
-  ChevronDown, FileText, ArrowRightCircle
+  ChevronDown, FileText, ArrowRightCircle, Send
 } from 'lucide-react';
 import type { QuoteData, UserProfile } from '../../types';
 import { supabase } from '../../supabaseClient';
 import { UserService } from '../../services/userService';
 import { WhatsappService } from '../../services/whatsappService';
-import { PDFDownloadLink, pdf } from '@react-pdf/renderer'; // <--- IMPORTANTE: 'pdf' importado
+import { PDFDownloadLink, pdf } from '@react-pdf/renderer'; 
 import { QuotePDFDocument } from './QuotePDF';
 
 interface QuotePreviewProps {
@@ -49,7 +49,6 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64String = reader.result as string;
-        // Quitamos el prefijo "data:application/pdf;base64," si existe, porque lo agregamos en el servicio
         const base64Clean = base64String.split(',')[1]; 
         resolve(base64Clean);
       };
@@ -58,12 +57,49 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
     });
   };
 
-  // --- WHATSAPP MANUAL (WEB) ---
+  // --- 1. WHATSAPP MANUAL (Respaldo Web) ---
   const handleShareWhatsappManual = () => {
     const text = `Estimado/a ${data.clientName},\n\nLe confirmamos que hemos generado la cotización *${data.projectRef}*.\n\nDetalles rápidos:\nModelo: ${data.model}\nNiveles: ${data.stops}\n\nAtte: Equipo Alamex.`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
     setShowShareMenu(false);
+  };
+
+  // --- 2. WHATSAPP API (Envío de PDF desde el Menú) ---
+  const handleShareWhatsappApi = async () => {
+    if (!data.clientPhone) {
+        alert("⚠️ Error: El cliente no tiene número telefónico registrado.");
+        return;
+    }
+    
+    if (!confirm(`¿Enviar el PDF automáticamente al número ${data.clientPhone}?`)) {
+        return;
+    }
+
+    setProcessing(true); 
+    setShowShareMenu(false); 
+
+    try {
+        const docBlob = await pdf(
+           <QuotePDFDocument data={data} userProfile={activeProfile} />
+        ).toBlob();
+        const base64Data = await blobToBase64(docBlob);
+        const caption = `Estimado/a *${data.clientName}*, adjunto encontrará la cotización *${data.projectRef}*.\n\nCualquier duda quedamos a sus órdenes.\nAtte: *Equipo Alamex*.`;
+        
+        await WhatsappService.sendPdf(
+           data.clientPhone, 
+           base64Data, 
+           `Cotizacion-${data.projectRef}.pdf`, 
+           caption
+        );
+        alert("✅ PDF enviado exitosamente por WhatsApp.");
+
+    } catch (error: any) {
+        console.error("Error envío menú:", error);
+        alert(`❌ Error al enviar: ${error.message}`);
+    } finally {
+        setProcessing(false);
+    }
   };
 
   const handleShareEmail = () => {
@@ -73,56 +109,51 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
     setShowShareMenu(false);
   };
 
-  // --- LÓGICA DE CONFIRMACIÓN + ENVÍO PDF WHAPI ---
+  // --- LÓGICA DEL BOTÓN PRINCIPAL (Inteligente) ---
   const handleConfirmSent = async () => {
+      
+      // CASO A: Si la cotización YA fue enviada anteriormente, 
+      // solo funcionamos como un botón de navegación al Ticket.
+      if (data.status !== 'Borrador') {
+          onGoToTicket();
+          return; // <--- SALIDA RÁPIDA (No hace nada más)
+      }
+
+      // CASO B: Si es Borrador, procedemos con el flujo de envío y actualización
       setProcessing(true);
       
       try {
-          // 1. Preguntamos si quiere enviar el PDF por WhatsApp
+          // Pregunta para automatización (Solo aparece la primera vez)
           const shouldSendWa = window.confirm(
-            "¿Deseas enviar la Cotización PDF por WhatsApp al cliente ahora mismo?"
+            "¿Deseas enviar la Cotización PDF por WhatsApp al cliente ahora mismo y confirmar?"
           );
 
-          if (shouldSendWa) {
-             if (data.clientPhone) {
-                 try {
-                     // A. Generamos el PDF en memoria (Blob)
-                     const docBlob = await pdf(
-                        <QuotePDFDocument data={data} userProfile={activeProfile} />
-                     ).toBlob();
-
-                     // B. Convertimos a Base64
-                     const base64Data = await blobToBase64(docBlob);
-
-                     // C. Preparamos el mensaje (Caption)
-                     const caption = `Estimado/a *${data.clientName}*, le confirmamos que hemos generado la cotización *${data.projectRef}*.\n\nDetalles rápidos:\nModelo: ${data.model}\nNiveles: ${data.stops}\n\nQuedamos atentos a sus comentarios.\n\nAtte: *Equipo Alamex*.`;
-                     
-                     // D. Enviamos a Whapi
-                     await WhatsappService.sendPdf(
-                        data.clientPhone, 
-                        base64Data, 
-                        `Cotizacion-${data.projectRef}.pdf`, 
-                        caption
-                     );
-                     
-                     alert("✅ PDF enviado por WhatsApp exitosamente.");
-
-                 } catch (waError: any) {
-                     console.error("Error WhatsApp PDF:", waError);
-                     alert(`⚠️ No se pudo enviar el PDF: ${waError.message}\n\nSe continuará con el proceso.`);
-                 }
-             } else {
-                 alert("⚠️ El cliente no tiene teléfono. Se omitió el envío.");
+          if (shouldSendWa && data.clientPhone) {
+             try {
+                 const docBlob = await pdf(
+                    <QuotePDFDocument data={data} userProfile={activeProfile} />
+                 ).toBlob();
+                 const base64Data = await blobToBase64(docBlob);
+                 const caption = `Estimado/a *${data.clientName}*, le confirmamos que hemos generado la cotización *${data.projectRef}*.\n\nDetalles rápidos:\nModelo: ${data.model}\nNiveles: ${data.stops}\n\nQuedamos atentos a sus comentarios.\n\nAtte: *Equipo Alamex*.`;
+                 
+                 await WhatsappService.sendPdf(
+                    data.clientPhone, 
+                    base64Data, 
+                    `Cotizacion-${data.projectRef}.pdf`, 
+                    caption
+                 );
+                 alert("✅ PDF enviado por WhatsApp.");
+             } catch (waError: any) {
+                 console.error("Error WhatsApp PDF:", waError);
+                 alert(`⚠️ No se pudo enviar el PDF: ${waError.message}\n\nSe continuará con el proceso.`);
              }
           }
 
-          // 2. Actualizamos estatus en BD
-          if (data.status === 'Borrador') {
-              if (!data.id) throw new Error("Sin ID para actualizar.");
-              await onUpdateStatus(data.id, 'Enviada');
-          }
+          // Actualizar estatus en Base de Datos
+          if (!data.id) throw new Error("Sin ID para actualizar.");
+          await onUpdateStatus(data.id, 'Enviada');
           
-          // 3. Vamos al Ticket
+          // Navegar al Ticket
           onGoToTicket();
 
       } catch (err: any) {
@@ -144,19 +175,22 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
         
         <div className="flex flex-wrap gap-3 justify-end items-center w-full md:w-auto">
             
-            {/* BOTÓN COMPARTIR (OPCIONALES) */}
+            {/* BOTÓN DE OPCIONES / COMPARTIR */}
             <div className="relative" ref={menuRef}>
                 <button 
                     onClick={() => setShowShareMenu(!showShareMenu)}
+                    disabled={processing}
                     className="flex items-center gap-2 bg-white text-slate-700 border border-slate-300 px-5 py-2.5 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm"
                 >
                     <Share2 size={18} />
-                    <span>Opciones</span>
+                    <span>Compartir</span>
                     <ChevronDown size={16} className={`transition-transform duration-200 ${showShareMenu ? 'rotate-180' : ''}`} />
                 </button>
+                
                 {showShareMenu && (
-                    <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden animate-slideUp origin-top-right ring-1 ring-black/5">
-                        <div className="p-1.5">
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden animate-slideUp origin-top-right ring-1 ring-black/5">
+                        <div className="p-2 space-y-1">
+                             {/* Opción 1: Descargar */}
                              <div className="hover:bg-slate-50 rounded-lg transition-colors">
                                 <PDFDownloadLink 
                                     document={<QuotePDFDocument data={data} userProfile={activeProfile} />} 
@@ -165,44 +199,64 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
                                 >
                                     {({ loading }) => (
                                         loading 
-                                        ? <><Loader2 className="animate-spin text-blue-900" size={18}/> ...</> 
-                                        : <><FileText className="text-red-500" size={18} /> Descargar PDF</>
+                                        ? <><Loader2 className="animate-spin text-blue-900" size={18}/> Preparando PDF...</> 
+                                        : <><FileText className="text-red-500" size={18} /> Descargar Archivo</>
                                     )}
                                 </PDFDownloadLink>
                             </div>
-                            <button onClick={handleShareEmail} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
-                                <Mail className="text-blue-500" size={18} /> Email (Opcional)
+
+                            <div className="border-t border-slate-100 my-1"></div>
+
+                            {/* Opción 2: Enviar PDF por API */}
+                            <button 
+                                onClick={handleShareWhatsappApi} 
+                                className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-green-800 bg-green-50 hover:bg-green-100 rounded-lg text-left transition-colors"
+                            >
+                                {processing ? <Loader2 className="animate-spin" size={18}/> : <Send size={18} />}
+                                Enviar PDF por WhatsApp
                             </button>
-                            <button onClick={handleShareWhatsappManual} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
-                                <MessageCircle className="text-green-500" size={18} /> WhatsApp Web
+
+                            {/* Opción 3: WhatsApp Web */}
+                            <button 
+                                onClick={handleShareWhatsappManual} 
+                                className="flex items-center gap-3 w-full px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg text-left"
+                            >
+                                <MessageCircle size={14} /> Abrir Web (Manual)
+                            </button>
+
+                            <div className="border-t border-slate-100 my-1"></div>
+
+                            {/* Opción 4: Correo */}
+                            <button onClick={handleShareEmail} className="flex items-center gap-3 w-full px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg text-left">
+                                <Mail className="text-blue-500" size={18} /> Cliente de Correo
                             </button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* BOTÓN PRINCIPAL: CONFIRMAR + WHATSAPP */}
+            {/* BOTÓN PRINCIPAL (DINÁMICO) */}
             <button 
                 onClick={handleConfirmSent}
                 disabled={processing}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-white shadow-lg transform active:scale-95 transition-all ${
                     data.status === 'Borrador' 
-                    ? 'bg-green-600 hover:bg-green-700 border-b-4 border-green-800'
-                    : 'bg-blue-900 hover:bg-blue-800 border-b-4 border-blue-950'
+                    ? 'bg-green-600 hover:bg-green-700 border-b-4 border-green-800' // Verde para enviar
+                    : 'bg-blue-900 hover:bg-blue-800 border-b-4 border-blue-950'    // Azul para navegar
                 }`}
             >
                 {processing ? <Loader2 className="animate-spin" size={20}/> : (
                     data.status === 'Borrador' ? <MessageCircle size={20}/> : <ArrowRightCircle size={20}/>
                 )}
                 <span>
-                    {data.status === 'Borrador' ? 'Enviar WhatsApp y Confirmar' : 'Ir al Ticket'}
+                    {data.status === 'Borrador' ? 'Enviar y Confirmar' : 'Ir al Ticket'}
                 </span>
             </button>
 
         </div>
       </div>
 
-      {/* VISUALIZADOR PDF */}
+      {/* VISUALIZADOR PDF (FONDO) */}
       <div className="flex-1 overflow-auto bg-gray-500/10 p-4 md:p-8 rounded-xl border border-gray-300 shadow-inner flex justify-center z-0">
         <div className="bg-white w-full max-w-3xl min-h-[800px] shadow-2xl p-10 md:p-12 relative">
             <div className="absolute top-0 left-0 w-full h-3 flex">
@@ -227,7 +281,7 @@ export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicke
                 <div>
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Preparado para</h3>
                     <p className="text-xl font-bold text-slate-900">{data.clientName || 'Cliente Estimado'}</p>
-                    <p className="text-sm text-slate-600 font-medium">{data.contactEmail || 'Sin correo registrado'}</p>
+                    <p className="text-sm text-slate-600 font-medium">{data.clientEmail || 'Sin correo registrado'}</p>
                 </div>
                 <div className="md:text-right">
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Asesor Comercial</h3>
