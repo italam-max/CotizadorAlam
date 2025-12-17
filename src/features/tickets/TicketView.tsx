@@ -1,8 +1,8 @@
 // ARCHIVO: src/features/tickets/TicketView.tsx
 import { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, Send, Phone, Mail, Clock, CheckCircle2, 
-  XCircle, User, Paperclip
+  ArrowLeft, Send, Clock, CheckCircle2, 
+  User, Paperclip
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { supabase } from '../../supabaseClient';
