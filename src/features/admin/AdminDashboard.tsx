@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Users, Shield, Ban, CheckCircle, 
-  Search, RefreshCw, MessageCircle, Send, AlertTriangle,
+  Search, RefreshCw, MessageCircle, Send, 
   Plus, X, Save, Lock, Mail, User, Briefcase
 } from 'lucide-react';
 import { UserService } from '../../services/userService';
