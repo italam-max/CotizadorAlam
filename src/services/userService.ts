@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import type { UserProfile } from '../types';
 
 export const UserService = {
-  // 1. Obtener perfil individual (Ya lo tenías)
+  // 1. Obtener perfil individual
   getProfile: async (userId: string): Promise<UserProfile | null> => {
     const { data, error } = await supabase
       .from('profiles')
@@ -18,7 +18,7 @@ export const UserService = {
     return data;
   },
 
-  // 2. Actualizar perfil propio (Ya lo tenías)
+  // 2. Actualizar perfil propio
   updateProfile: async (userId: string, updates: Partial<UserProfile>) => {
     const { data, error } = await supabase
       .from('profiles')
@@ -34,7 +34,7 @@ export const UserService = {
     return data;
   },
 
-  // --- NUEVAS FUNCIONES PARA EL ADMIN PANEL ---
+  // --- FUNCIONES DE ADMINISTRACIÓN ---
 
   // 3. Obtener TODOS los usuarios
   getAllProfiles: async (): Promise<UserProfile[]> => {
@@ -76,5 +76,23 @@ export const UserService = {
       return false;
     }
     return true;
+  },
+
+  // 6. Crear Usuario Nuevo (Usando Supabase Edge Functions)
+  createUser: async (userData: { email: string; password: string; fullName: string; jobTitle: string; role: string }) => {
+    try {
+      // Llamada directa a la nube de Supabase
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: userData
+      });
+
+      if (error) throw error;
+      if (data && data.error) throw new Error(data.error);
+
+      return data;
+    } catch (error: any) {
+      console.error('Error creando usuario:', error);
+      throw new Error(error.message || 'Error al conectar con el servidor');
+    }
   }
 };

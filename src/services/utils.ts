@@ -1,7 +1,13 @@
 // ARCHIVO: src/services/utils.ts
-// CORRECCIÓN: Agregamos 'type' en los imports
 import type { QuoteData } from '../types';
 import { ELEVATOR_MODELS } from '../data/constants';
+
+// --- NUEVA FUNCIÓN DE NORMALIZACIÓN ---
+export const normalizePhone = (phone: string | number | undefined | null): string => {
+  if (!phone) return '';
+  // Convierte a string, quita todo lo que no sea número
+  return String(phone).replace(/\D/g, '');
+};
 
 export const generateQuoteDescription = (data: QuoteData) => {
   const modelLabel = ELEVATOR_MODELS.find(m => m.id === data.model)?.label || data.model;

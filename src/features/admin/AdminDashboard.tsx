@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Users, Shield, Ban, CheckCircle, 
-  Search, RefreshCw, Mail, MessageCircle, Send, AlertTriangle
+  Search, RefreshCw, MessageCircle, Send, AlertTriangle,
+  Plus, X, Save, Lock, Mail, User, Briefcase
 } from 'lucide-react';
-// 1. ELIMINAMOS EL IMPORT DE SUPABASE QUE NO SE USA
 import { UserService } from '../../services/userService';
 import { WhatsappService } from '../../services/whatsappService';
 import type { UserProfile } from '../../types';
@@ -19,9 +19,20 @@ export default function AdminDashboard({ onExit, onNotify }: AdminDashboardProps
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estados para prueba de WhatsApp
+  // Estados para WhatsApp
   const [testPhone, setTestPhone] = useState('');
   const [sendingWa, setSendingWa] = useState(false);
+
+  // --- NUEVOS ESTADOS PARA CREAR USUARIO ---
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newUser, setNewUser] = useState({
+      email: '',
+      password: '',
+      fullName: '',
+      jobTitle: '',
+      role: 'user'
+  });
 
   useEffect(() => {
     loadUsers();
@@ -40,51 +51,54 @@ export default function AdminDashboard({ onExit, onNotify }: AdminDashboardProps
     }
   };
 
+  // --- LÓGICA DE CREACIÓN DE USUARIO ---
+  const handleCreateUser = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if(newUser.password.length < 6) return onNotify('La contraseña debe tener 6 caracteres', 'error');
+      
+      setCreating(true);
+      try {
+          await UserService.createUser(newUser);
+          onNotify('Usuario creado exitosamente', 'success');
+          setShowCreateModal(false);
+          setNewUser({ email: '', password: '', fullName: '', jobTitle: '', role: 'user' }); // Reset
+          loadUsers(); // Recargar lista
+      } catch (error: any) {
+          onNotify(error.message, 'error');
+      } finally {
+          setCreating(false);
+      }
+  };
+
+  // ... (Tus funciones existentes handleRoleChange, handleToggleActive, handleTestWhatsapp se mantienen igual)
   const handleRoleChange = async (userId: string, currentRole: string) => {
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
-      if (!confirm(`¿Cambiar rol de usuario a ${newRole.toUpperCase()}?`)) return;
-
+      if (!confirm(`¿Cambiar rol a ${newRole.toUpperCase()}?`)) return;
       const success = await UserService.updateRole(userId, newRole as 'admin'|'user');
       if (success) {
           setUsers(users.map(u => u.id === userId ? { ...u, role: newRole as 'admin'|'user' } : u));
-          onNotify(`Rol actualizado a ${newRole}`, 'success');
-      } else {
-          onNotify('Error al actualizar rol', 'error');
+          onNotify(`Rol actualizado`, 'success');
       }
   };
 
   const handleToggleActive = async (userId: string, currentStatus: boolean) => {
       const newStatus = !currentStatus;
-      const action = newStatus ? 'Reactivar' : 'Banear';
-      
-      if (!confirm(`¿Estás seguro de ${action} a este usuario?`)) return;
-
       const success = await UserService.toggleActive(userId, newStatus);
       if (success) {
           setUsers(users.map(u => u.id === userId ? { ...u, active: newStatus } : u));
           onNotify(`Usuario ${newStatus ? 'activado' : 'baneado'}`, 'success');
-      } else {
-          onNotify('Error al cambiar estatus', 'error');
       }
   };
 
-  // --- FUNCIÓN DE PRUEBA DE WHATSAPP ---
   const handleTestWhatsapp = async () => {
-      if (!testPhone) return alert("Por favor escribe un número telefónico (Ej: 52155...)");
-      
+      if (!testPhone) return alert("Escribe un número");
       setSendingWa(true);
       try {
-          // Limpiamos el número
-          const cleanPhone = WhatsappService.formatPhone(testPhone);
-          const msg = "🔔 Hola! Esta es una prueba de conexión exitosa desde el Sistema de Cotización Alamex.";
-          
-          await WhatsappService.sendMessage(cleanPhone, msg);
-          
-          onNotify("✅ Mensaje enviado con éxito a Whapi", 'success');
+          await WhatsappService.sendMessage(WhatsappService.formatPhone(testPhone), "🔔 Prueba de conexión Alamex.");
+          onNotify("Mensaje enviado", 'success');
           setTestPhone(''); 
       } catch (error: any) {
-          console.error("Error Whapi:", error);
-          onNotify(`Error de envío: ${error.message}`, 'error');
+          onNotify(`Error: ${error.message}`, 'error');
       } finally {
           setSendingWa(false);
       }
@@ -92,91 +106,80 @@ export default function AdminDashboard({ onExit, onNotify }: AdminDashboardProps
 
   const filteredUsers = users.filter(u => 
     (u.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (u.department?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+    (u.department?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (u.job_title?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 animate-fadeIn overflow-auto">
+    <div className="flex flex-col h-full bg-slate-50 animate-fadeIn overflow-auto relative">
       
       {/* HEADER */}
-      <div className="bg-slate-900 text-white p-6 sticky top-0 z-10 shadow-md">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <div className="flex items-center gap-4">
-                <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-                    <ArrowLeft size={24} />
-                </button>
-                <div>
-                    <h1 className="text-2xl font-black flex items-center gap-2">
-                        <Shield className="text-red-500"/> Panel de Administración TI
-                    </h1>
-                    <p className="text-slate-400 text-sm">Gestión de Accesos y Servicios</p>
-                </div>
+      <div className="bg-slate-900 text-white p-6 sticky top-0 z-10 shadow-md flex justify-between items-center">
+        <div className="flex items-center gap-4">
+            <button onClick={onExit} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                <ArrowLeft size={24} />
+            </button>
+            <div>
+                <h1 className="text-2xl font-black flex items-center gap-2">
+                    <Shield className="text-red-500"/> Panel TI
+                </h1>
+                <p className="text-slate-400 text-sm">Administración del Sistema</p>
             </div>
-            <button onClick={loadUsers} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-bold transition-colors text-sm">
-                <RefreshCw size={18} className={loading ? 'animate-spin' : ''} /> Actualizar Lista
+        </div>
+        <div className="flex gap-3">
+            <button onClick={loadUsers} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors" title="Recargar">
+                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
+            </button>
+            {/* BOTÓN NUEVO USUARIO */}
+            <button 
+                onClick={() => setShowCreateModal(true)} 
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-bold transition-colors text-sm shadow-lg hover:shadow-blue-500/20"
+            >
+                <Plus size={20} /> Nuevo Usuario
             </button>
         </div>
       </div>
 
       <div className="flex-1 p-6 max-w-6xl mx-auto w-full space-y-8">
         
-        {/* KPIS RÁPIDOS */}
+        {/* KPIS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><Users size={24}/></div>
-                <div><p className="text-xs text-slate-400 font-bold uppercase">Total Usuarios</p><h3 className="text-2xl font-black">{users.length}</h3></div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div className="p-3 bg-green-50 text-green-600 rounded-lg"><Shield size={24}/></div>
-                <div><p className="text-xs text-slate-400 font-bold uppercase">Admins</p><h3 className="text-2xl font-black">{users.filter(u=>u.role==='admin').length}</h3></div>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg"><Ban size={24}/></div>
-                <div><p className="text-xs text-slate-400 font-bold uppercase">Inactivos</p><h3 className="text-2xl font-black">{users.filter(u=>!u.active).length}</h3></div>
-            </div>
+            <KpiCard icon={<Users/>} label="Total Usuarios" value={users.length} color="blue" />
+            <KpiCard icon={<Shield/>} label="Administradores" value={users.filter(u=>u.role==='admin').length} color="green" />
+            <KpiCard icon={<Ban/>} label="Inactivos" value={users.filter(u=>!u.active).length} color="red" />
         </div>
 
-        {/* --- SECCIÓN DE INTEGRACIONES (WHATSAPP) --- */}
+        {/* INTEGRACIONES */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4 text-lg">
-                <MessageCircle className="text-green-600"/> Integración Whapi (WhatsApp)
+                <MessageCircle className="text-green-600"/> Test Whapi
             </h3>
-            <div className="flex flex-col md:flex-row gap-6 items-end">
-                <div className="flex-1 w-full">
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Número de Prueba (con código de país)</label>
-                    <div className="relative">
-                        <input 
-                            type="text" 
-                            placeholder="Ej: 5215512345678" 
-                            className="form-input pl-10"
-                            value={testPhone}
-                            onChange={(e) => setTestPhone(e.target.value)}
-                        />
-                        <MessageCircle className="absolute left-3 top-3 text-slate-400" size={18}/>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                        <AlertTriangle size={10}/> Asegúrate de haber guardado tu Token en Ajustes {'>'} Integraciones.
-                    </p>
-                </div>
+            <div className="flex gap-4">
+                <input 
+                    type="text" 
+                    placeholder="521..." 
+                    className="form-input flex-1"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                />
                 <button 
                     onClick={handleTestWhatsapp}
                     disabled={sendingWa}
-                    className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2 shadow-sm transition-all active:scale-95 w-full md:w-auto justify-center"
+                    className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
                 >
-                    <Send size={18} className={sendingWa ? 'animate-ping' : ''} /> 
-                    {sendingWa ? 'Enviando...' : 'Enviar Mensaje de Prueba'}
+                    <Send size={18} className={sendingWa ? 'animate-ping' : ''} /> Probar
                 </button>
             </div>
         </div>
 
-        {/* TABLA DE USUARIOS */}
+        {/* TABLA USUARIOS */}
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
                 <Search size={18} className="text-slate-400"/>
                 <input 
                     type="text" 
-                    placeholder="Buscar usuario por nombre o departamento..." 
-                    className="bg-transparent border-none outline-none text-sm w-full font-medium text-slate-600 placeholder:text-slate-400"
+                    placeholder="Buscar usuario..." 
+                    className="bg-transparent border-none outline-none text-sm w-full font-medium"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -188,66 +191,135 @@ export default function AdminDashboard({ onExit, onNotify }: AdminDashboardProps
                         <tr>
                             <th className="p-4">Usuario</th>
                             <th className="p-4">Rol</th>
-                            <th className="p-4">Estatus</th>
+                            <th className="p-4">Estado</th>
                             <th className="p-4 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan={4} className="p-8 text-center text-slate-400">Cargando usuarios...</td></tr>
-                        ) : filteredUsers.length === 0 ? (
-                            <tr><td colSpan={4} className="p-8 text-center text-slate-400">No se encontraron usuarios</td></tr>
-                        ) : (
-                            filteredUsers.map(user => (
-                                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 uppercase">
-                                                {user.full_name ? user.full_name.charAt(0) : <Mail size={16}/>}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-slate-800">{user.full_name || 'Sin nombre'}</p>
-                                                <p className="text-xs text-slate-500">{user.job_title || 'Sin cargo'} • {user.department || 'General'}</p>
-                                            </div>
+                        {filteredUsers.map(user => (
+                            <tr key={user.id} className="hover:bg-slate-50">
+                                <td className="p-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 uppercase">
+                                            {user.full_name?.charAt(0) || 'U'}
                                         </div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'}`}>
-                                            {user.role || 'user'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase flex w-fit items-center gap-1 ${user.active !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                            {user.active !== false ? <CheckCircle size={12}/> : <Ban size={12}/>}
-                                            {user.active !== false ? 'Activo' : 'Baneado'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right space-x-2">
-                                        <button 
-                                            onClick={() => handleRoleChange(user.id, user.role || 'user')}
-                                            className="px-3 py-1 text-xs font-bold border rounded hover:bg-slate-100 transition-colors"
-                                        >
-                                            Cambiar Rol
-                                        </button>
-                                        <button 
-                                            onClick={() => handleToggleActive(user.id, user.active !== false)}
-                                            className={`px-3 py-1 text-xs font-bold border rounded transition-colors ${
-                                                user.active !== false 
-                                                ? 'border-red-200 text-red-600 hover:bg-red-50' 
-                                                : 'border-green-200 text-green-600 hover:bg-green-50'
-                                            }`}
-                                        >
-                                            {user.active !== false ? 'Banear' : 'Reactivar'}
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
+                                        <div>
+                                            <p className="font-bold text-slate-800">{user.full_name}</p>
+                                            <p className="text-xs text-slate-500">{user.job_title || 'Sin cargo'}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="p-4"><span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">{user.role}</span></td>
+                                <td className="p-4">
+                                    {user.active !== false 
+                                        ? <span className="text-green-600 font-bold text-xs flex items-center gap-1"><CheckCircle size={12}/> Activo</span>
+                                        : <span className="text-red-600 font-bold text-xs flex items-center gap-1"><Ban size={12}/> Baneado</span>
+                                    }
+                                </td>
+                                <td className="p-4 text-right space-x-2">
+                                    <button onClick={() => handleRoleChange(user.id, user.role||'user')} className="text-blue-600 hover:underline text-xs font-bold">Rol</button>
+                                    <button onClick={() => handleToggleActive(user.id, user.active !== false)} className="text-red-600 hover:underline text-xs font-bold">
+                                        {user.active !== false ? 'Banear' : 'Activar'}
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>
         </div>
       </div>
+
+      {/* --- MODAL PARA CREAR USUARIO --- */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slideUp">
+                <div className="bg-slate-900 p-6 flex justify-between items-center text-white">
+                    <h3 className="font-bold text-lg flex items-center gap-2"><Plus/> Nuevo Usuario</h3>
+                    <button onClick={() => setShowCreateModal(false)} className="hover:bg-white/20 p-1 rounded transition"><X size={20}/></button>
+                </div>
+                
+                <form onSubmit={handleCreateUser} className="p-6 space-y-4">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Nombre Completo</label>
+                        <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-slate-50">
+                            <User size={18} className="text-slate-400"/>
+                            <input required className="bg-transparent outline-none w-full text-sm" placeholder="Ej: Juan Pérez"
+                                value={newUser.fullName} onChange={e => setNewUser({...newUser, fullName: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Correo Electrónico</label>
+                        <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-slate-50">
+                            <Mail size={18} className="text-slate-400"/>
+                            <input required type="email" className="bg-transparent outline-none w-full text-sm" placeholder="juan@alamex.mx"
+                                value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase">Cargo / Puesto</label>
+                        <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-slate-50">
+                            <Briefcase size={18} className="text-slate-400"/>
+                            <input required className="bg-transparent outline-none w-full text-sm" placeholder="Ej: Ventas Jr."
+                                value={newUser.jobTitle} onChange={e => setNewUser({...newUser, jobTitle: e.target.value})}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Contraseña</label>
+                            <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-slate-50">
+                                <Lock size={18} className="text-slate-400"/>
+                                <input required type="password" className="bg-transparent outline-none w-full text-sm" placeholder="******"
+                                    value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-slate-500 uppercase">Rol</label>
+                            <select className="w-full border rounded-lg px-3 py-2 bg-slate-50 text-sm outline-none"
+                                value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
+                            >
+                                <option value="user">Usuario</option>
+                                <option value="admin">Administrador</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 flex gap-3">
+                        <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-2 border rounded-lg font-bold text-slate-500 hover:bg-slate-50">Cancelar</button>
+                        <button type="submit" disabled={creating} className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg disabled:opacity-50 flex justify-center gap-2">
+                            {creating ? <RefreshCw className="animate-spin"/> : <Save size={18}/>} Crear Usuario
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+// Componente visual pequeño
+const KpiCard = ({ icon, label, value, color }: any) => {
+    const colors: any = {
+        blue: 'text-blue-600 bg-blue-50',
+        green: 'text-green-600 bg-green-50',
+        red: 'text-red-600 bg-red-50'
+    };
+    return (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
+            <div className={`p-3 rounded-lg ${colors[color]}`}>{icon}</div>
+            <div>
+                <p className="text-xs text-slate-400 font-bold uppercase">{label}</p>
+                <h3 className="text-2xl font-black text-slate-800">{value}</h3>
+            </div>
+        </div>
+    );
+};

@@ -1,19 +1,18 @@
 // ARCHIVO: src/services/storageService.ts
 import type { QuoteData, AppSettings } from '../types';
-import { INITIAL_SETTINGS } from '../data/constants'; // Quitamos SEED_QUOTES
+import { INITIAL_SETTINGS } from '../data/constants'; 
 import { supabase } from '../supabaseClient';
+import { normalizePhone } from './utils'; // Importamos la utilidad de normalización
 
 const DB_KEYS = { SETTINGS: 'alamex_settings_v1' };
-
-// ... (El resto de funciones mapToDb y mapFromDb siguen igual, no las repito para ahorrar espacio) ...
-// ... Copia las funciones auxiliares mapToDb y mapFromDb de la versión anterior ...
 
 const mapToDb = (q: QuoteData) => ({
   ...(q.id && typeof q.id === 'number' ? { id: q.id } : {}),
   status: q.status,
   current_stage: q.currentStage,
   client_name: q.clientName,
-  client_phone: q.clientPhone,
+  // AQUI EL CAMBIO: Normalizamos el teléfono antes de guardar (solo dígitos)
+  client_phone: normalizePhone(q.clientPhone),
   client_email: q.clientEmail,
   project_ref: q.projectRef,
   project_date: q.projectDate,
