@@ -5,7 +5,7 @@ import axios from 'axios';
 // (A estos números les llegará la alerta de WATI)
 const AGENTES = {
   facturacion: '5215585338124', // <--- CAMBIA ESTO por el celular real de Facturación
-  ventas: '5215533334444'       // <--- CAMBIA ESTO por el celular real de Ventas
+  ventas: '5215585338124'       // <--- CAMBIA ESTO por el celular real de Ventas
 };
 
 export default async function handler(req, res) {
