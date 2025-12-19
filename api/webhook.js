@@ -32,6 +32,11 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const body = req.body;
     console.log("📨 Webhook recibido:", JSON.stringify(body, null, 2));
+    console.log("DEBUG VARIABLES:", {
+        hasUrl: !!process.env.WATI_API_ENDPOINT,
+        hasToken: !!process.env.WATI_ACCESS_TOKEN,
+        endpoint: process.env.WATI_API_ENDPOINT // Para ver si la URL está bien formada
+      });
 
     try {
         // Verificar si es un mensaje entrante de Meta (o simulación)
