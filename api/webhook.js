@@ -4,7 +4,7 @@ import axios from 'axios';
 // 1. CONFIGURA AQUÍ LOS NÚMEROS REALES DE TUS EMPLEADOS
 // (A estos números les llegará la alerta de WATI)
 const AGENTES = {
-  facturacion: '5215511112222', // <--- CAMBIA ESTO por el celular real de Facturación
+  facturacion: '5215585338124', // <--- CAMBIA ESTO por el celular real de Facturación
   ventas: '5215533334444'       // <--- CAMBIA ESTO por el celular real de Ventas
 };
 
