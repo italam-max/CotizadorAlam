@@ -2,7 +2,6 @@
 import axios from 'axios';
 
 // 1. CONFIGURACIÓN DE AGENTES (NÚMEROS REALES)
-// ¡IMPORTANTE!: Cambia estos números por los reales de tu equipo donde quieres recibir la alerta.
 // Usa el formato 521 + 10 dígitos (ej. 5215512345678)
 const AGENTES = {
   facturacion: '5215585338124', // <--- Poner celular real de Facturación

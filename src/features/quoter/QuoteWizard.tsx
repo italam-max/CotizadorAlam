@@ -3,13 +3,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowRight, Save, Users, Settings, Activity, 
   MoveVertical, Box, Shield, Package, DollarSign, Info, 
-  Truck, FileText, CheckCircle, Eye 
+  Truck, FileText, CheckCircle, Eye, 
+  Sparkles, ArrowLeft // <--- Agregamos Sparkles y ArrowLeft
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { INITIAL_FORM_STATE, ELEVATOR_MODELS, CONTROL_GROUPS, CAPACITIES, SPEEDS, TRACTIONS, SHAFT_TYPES, YES_NO, CABIN_MODELS, FLOOR_FINISHES, DOOR_TYPES, NORMS, DISPLAYS } from '../../data/constants';
 import { calculateMaterials } from '../../services/calculations';
 import { InputGroup } from '../../components/ui/InputGroup';
 import { SectionTitle } from '../../components/ui/SectionTitle';
+
+// --- IMPORTAMOS EL ASISTENTE SEPARADO ---
+import SelectionAssistant from './SelectionAssistant';
 
 interface QuoteWizardProps {
   initialData?: QuoteData;
@@ -25,23 +29,24 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
   const [formData, setFormData] = useState<QuoteData>(initialData || INITIAL_FORM_STATE);
   const [isSaving, setIsSaving] = useState(false);
   
-  // --- NUEVO ESTADO PARA EL REDIRECCIONAMIENTO AUTOMÁTICO ---
+  // --- ESTADO PARA EL ASISTENTE INTELIGENTE ---
+  const [showAssistant, setShowAssistant] = useState(false);
+  
+  // Estado para redirección automática
   const [pendingRedirect, setPendingRedirect] = useState(false);
 
-  // Sincronizar datos si vienen del padre (ej. cuando se crea el ID en DB)
+  // Sincronizar datos si vienen del padre
   useEffect(() => {
     if (initialData) {
         setFormData(curr => ({ ...curr, ...initialData }));
         
-        // TRUCO DE TESTER:
-        // Si estábamos esperando redireccionar y YA tenemos ID, nos vamos a la vista previa
         if (pendingRedirect && initialData.id) {
-            setPendingRedirect(false); // Apagamos la bandera
-            setIsSaving(false);        // Quitamos spinner
-            onViewPreview();           // ¡Vámonos!
+            setPendingRedirect(false); 
+            setIsSaving(false);        
+            onViewPreview();           
         }
     }
-  }, [initialData, pendingRedirect]); // Escuchamos cambios en initialData
+  }, [initialData, pendingRedirect]); 
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -51,38 +56,42 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
     onUpdate(newData);
   };
 
+  // --- CALLBACK DEL ASISTENTE ---
+  const handleAssistantApply = (suggestedData: Partial<QuoteData>) => {
+      const newData = { ...formData, ...suggestedData };
+      setFormData(newData);
+      onUpdate(newData);
+      
+      // Opcional: Llevamos al usuario al paso 2 (Técnico) para que vea los cambios aplicados
+      setStep(2); 
+  };
+
   const materials = useMemo(() => calculateMaterials(formData), [formData]);
 
   // --- ACCIONES ---
 
-  // 1. Guardado Manual (Botón de arriba)
   const handleManualSave = () => {
       setIsSaving(true);
       onSave(formData);
-      // Solo efecto visual
       setTimeout(() => setIsSaving(false), 800);
   };
 
-  // 2. Guardado y Redirección (Botón Final)
   const handleSaveAndPreview = () => {
     setIsSaving(true);
     onSave(formData);
 
     if (formData.id) {
-        // Caso A: Ya existía (es edición), nos vamos directo con un pequeño delay visual
         setTimeout(() => {
             setIsSaving(false);
             onViewPreview();
         }, 500);
     } else {
-        // Caso B: Es NUEVA. Activamos la espera para cuando llegue el ID
         setPendingRedirect(true);
     }
   };
 
   const handleSafePreview = () => {
     if (!formData.id) {
-        // Si intenta dar clic arriba sin guardar, le ofrecemos guardar y salir
         if(confirm("Para ver la vista previa primero debes guardar. ¿Guardar ahora?")) {
             handleSaveAndPreview();
         }
@@ -96,7 +105,18 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
       case 1: 
         return (
           <div className="animate-fadeIn">
-            <SectionTitle title="Datos de Contacto" icon={Users} />
+            {/* ENCABEZADO CON BOTÓN DEL ASISTENTE */}
+            <div className="flex justify-between items-center">
+                <SectionTitle title="Datos de Contacto" icon={Users} />
+                
+                <button 
+                    onClick={() => setShowAssistant(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all animate-pulse"
+                >
+                    <Sparkles size={14} /> Asistente de Selección
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup label="Cliente"><input name="clientName" value={formData.clientName} onChange={handleChange} className="form-input" /></InputGroup>
               <InputGroup label="Referencia"><input name="projectRef" value={formData.projectRef} onChange={handleChange} className="form-input" /></InputGroup>
@@ -358,11 +378,24 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 relative">
+      
+      {/* RENDERIZAMOS EL ASISTENTE AQUÍ (Flotante) */}
+      <SelectionAssistant 
+          isOpen={showAssistant} 
+          onClose={() => setShowAssistant(false)} 
+          onApply={handleAssistantApply}
+          // AGREGAMOS LOS DATOS FALTANTES
+          clientName={formData.clientName || 'Cliente Estimado'}
+          projectRef={formData.projectRef}
+      />
+
       {/* HEADER */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-10">
          <div className="flex items-center gap-4">
-             <button onClick={onExit} className="text-slate-500 hover:text-blue-900 font-bold text-sm">Cancelar</button>
+             <button onClick={onExit} className="text-slate-500 hover:text-blue-900 flex items-center gap-2 font-bold text-sm">
+                <ArrowLeft size={18}/> Cancelar
+             </button>
              <div className="h-6 w-px bg-slate-300"></div>
              <div>
                 <h2 className="font-black text-slate-800 text-lg leading-none">{formData.projectRef || 'Nueva Cotización'}</h2>
@@ -372,7 +405,6 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
              </div>
          </div>
 
-         {/* BOTONES SUPERIORES */}
          <div className="flex items-center gap-3">
              <button 
                 onClick={handleManualSave}
@@ -409,7 +441,7 @@ export default function QuoteWizard({ initialData, onSave, onExit, onUpdate, onV
 
       {/* FOOTER */}
       <div className="p-6 border-t bg-white flex justify-between sticky bottom-0 z-10">
-          <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1} className="btn-secondary disabled:opacity-50">Anterior</button>
+          <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1} className="btn-secondary disabled:opacity-50 flex items-center gap-2"><ArrowLeft size={18}/> Anterior</button>
           
           <div className="flex items-center gap-4">
               {step < 3 ? (
