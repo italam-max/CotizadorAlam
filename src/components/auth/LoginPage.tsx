@@ -1,6 +1,6 @@
 // ARCHIVO: src/components/auth/LoginPage.tsx
 import { useState } from 'react';
-import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, Sparkles, ArrowRight, Moon } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
 export default function LoginPage() {
@@ -21,133 +21,143 @@ export default function LoginPage() {
       });
       if (error) throw error;
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión.');
+      setError(err.message || 'Credenciales incorrectas.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // Contenedor principal
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans relative overflow-hidden bg-gray-900">
+    <div className="min-h-screen flex flex-col justify-center items-center font-sans text-white relative overflow-hidden bg-[#020A1A]">
       
-      {/* --- CAPA 1: IMAGEN DE FONDO --- */}
-      <div 
-        className="absolute inset-0 z-0" // Quitamos 'transform scale-105' para no hacer zoom extra
-        style={{ 
-            // Asegúrate de que el archivo en public/images/ se llame EXACTAMENTE así:
-            backgroundImage: "url('/images/fondo-alamex.png')",
-            
-            // 'cover' es clave: Escala la imagen proporcionalmente hasta cubrir todo.
-            // NO deforma, pero sí RECORTA si las proporciones no coinciden.
-            backgroundSize: 'cover',     
-            
-            // Centra la imagen horizontal y verticalmente.
-            backgroundPosition: 'center center', 
-            
-            // Evita mosaicos
-            backgroundRepeat: 'no-repeat',
-
-            // (Opcional) Si tu imagen es muy brillante, esto ayuda a que el texto se lea. 
-            // Si la imagen ya es oscura, puedes quitar esta línea.
-            filter: 'brightness(0.8)' 
-        }} 
-      ></div>
-
-      {/* --- CAPA 2: FILTRO DE COLOR --- */}
-      {/* Un tono azul corporativo sobre la imagen para unificar el diseño */}
-      <div className="absolute inset-0 bg-blue-950/60 z-10 mix-blend-multiply pointer-events-none"></div>
-
-      {/* --- CAPA 3: CONTENIDO (Login) --- */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-20">
-        {/* Logo Corporativo Real */}
-        <div className="inline-flex items-center gap-4 mb-6 bg-white/10 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/20 animate-fadeIn">
-            <div className="bg-white p-2 rounded-lg shadow-sm transform -rotate-6">
-                <img 
-                  src="/images/logo-alamex.png" 
-                  alt="Logo Alamex" 
-                  className="w-10 h-10 object-contain" 
-                />
-            </div>
-            <div className="text-left">
-                <h1 className="text-3xl font-black text-white tracking-wide uppercase italic leading-none drop-shadow-md">ALAMEX</h1>
-                <p className="text-xs font-bold text-yellow-400 tracking-wider mt-1 drop-shadow-sm">Ascending Together</p>
-            </div>
-        </div>
-        
-        <h2 className="mt-2 text-2xl font-black text-white drop-shadow-md">
-          Portal de Cotización Interno
-        </h2>
-        <p className="mt-2 text-sm text-blue-100 font-medium">
-          Acceso exclusivo para personal autorizado.
-        </p>
+      {/* --- FONDO ESTÁTICO (Base) --- */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-10" style={{
+          backgroundImage:  'radial-gradient(#D4AF37 0.5px, transparent 0.5px), radial-gradient(#D4AF37 0.5px, transparent 0.5px)',
+          backgroundSize: '30px 30px',
+          backgroundPosition: '0 0, 15px 15px'
+      }}></div>
+      
+      {/* --- FONDO DINÁMICO (Bruma Dorada y Azul) --- */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] bg-[#D4AF37]/10 rounded-full blur-[100px] animate-blob"></div>
+          <div className="absolute top-[20%] -right-[10%] w-[50vw] h-[50vw] bg-[#0A2463]/30 rounded-full blur-[120px] animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-[20%] left-[20%] w-[40vw] h-[40vw] bg-[#D4AF37]/5 rounded-full blur-[100px] animate-blob animation-delay-4000"></div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-20">
-        <div className="bg-white/95 backdrop-blur-lg py-10 px-6 shadow-2xl rounded-3xl sm:px-12 border-t-4 border-yellow-500 animate-slideUp">
+      {/* --- CONTENIDO --- */}
+      <div className="relative z-10 w-full max-w-md px-6 animate-fadeIn">
+        
+        {/* LOGOTIPO FLOTANTE Y TÍTULOS */}
+        <div className="text-center mb-10 relative"> {/* Margen inferior reducido para subir el formulario */}
+            
+            {/* Logo en cristal */}
+            <div className="inline-flex relative group">
+                <div className="absolute -inset-4 bg-[#D4AF37] rounded-full blur-xl opacity-20 group-hover:opacity-40 transition duration-1000 animate-pulse"></div>
+                <div className="bg-black/30 backdrop-blur-2xl p-6 rounded-3xl shadow-2xl border border-white/10 relative z-10 transform group-hover:scale-105 transition-transform duration-500">
+                    <img 
+                      src="/images/logo-alamex.png" 
+                      alt="Logo Alamex" 
+                      className="w-20 h-20 object-contain drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                    />
+                </div>
+            </div>
+            
+            {/* Título Principal */}
+            <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mt-8 mb-4 drop-shadow-2xl">ALAMEX</h1>
+            
+            {/* ESLOGAN HORIZONTAL (Todo seguido) */}
+            <div className="flex items-center justify-center gap-4 opacity-100 w-full">
+                <div className="h-px flex-1 max-w-[60px] md:max-w-[100px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-80"></div>
+                
+                <p 
+                    className="text-lg md:text-xl font-bold text-[#D4AF37] tracking-[0.3em] uppercase text-center whitespace-nowrap"
+                    style={{ 
+                        textShadow: '0 0 15px rgba(212, 175, 55, 0.6), 0 0 30px rgba(212, 175, 55, 0.2)' 
+                    }}
+                >
+                    Ascending Together
+                </p>
+                
+                <div className="h-px flex-1 max-w-[60px] md:max-w-[100px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-80"></div>
+            </div>
+        </div>
+
+        {/* FORMULARIO DE ACCESO */}
+        <div className="backdrop-blur-xl bg-black/40 p-8 md:p-10 rounded-[2rem] shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/10 relative overflow-hidden group-focus-within:border-[#D4AF37]/30 transition-all duration-500">
+          
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent opacity-70"></div>
+
+          <div className="text-center mb-8">
+             <h2 className="text-xl font-bold text-white flex items-center justify-center gap-2">
+                <Moon className="text-[#D4AF37]" size={18} fill="#D4AF37" />
+                Acceso Interno 
+             </h2>
+          </div>
+
           <form className="space-y-6" onSubmit={handleLogin}>
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-center gap-3 animate-bounce-in">
-                <AlertCircle className="text-red-500" size={20} />
-                <p className="text-sm font-bold text-red-700">{error}</p>
+              <div className="bg-red-900/40 border border-red-500/30 p-4 rounded-xl flex items-center gap-3 animate-bounce-in">
+                <AlertCircle className="text-red-400 shrink-0" size={18} />
+                <p className="text-xs font-bold text-red-100">{error}</p>
               </div>
             )}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-bold text-gray-700 pl-1">
-                Correo Corporativo
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#D4AF37] uppercase tracking-wider pl-1 flex items-center gap-1.5">
+                <Sparkles size={10}/> Usuario
               </label>
-              <div className="mt-2 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                  <Mail className="h-5 w-5 text-[#D4AF37]/60 group-focus-within:text-[#D4AF37] transition-colors" />
                 </div>
                 <input
-                  id="email"
-                  name="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-12 pr-3 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent sm:text-sm bg-gray-50/50 focus:bg-white transition-all font-medium"
-                  placeholder="usuario@alamex.mx"
+                  className="block w-full pl-12 pr-4 py-4 bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none text-sm font-medium text-white placeholder-white/20 transition-all shadow-inner hover:bg-black/50"
+                  placeholder="usuario@alam.mx"
                 />
               </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-bold text-gray-700 pl-1">
-                Contraseña
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#D4AF37] uppercase tracking-wider pl-1 flex items-center gap-1.5">
+                <Sparkles size={10}/> Clave
               </label>
-              <div className="mt-2 relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                  <Lock className="h-5 w-5 text-[#D4AF37]/60 group-focus-within:text-[#D4AF37] transition-colors" />
                 </div>
                 <input
-                  id="password"
-                  name="password"
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-12 pr-3 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent sm:text-sm bg-gray-50/50 focus:bg-white transition-all font-medium"
+                  className="block w-full pl-12 pr-4 py-4 bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none text-sm font-medium text-white placeholder-white/20 transition-all shadow-inner hover:bg-black/50"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-gradient-to-r from-blue-900 to-blue-800 hover:from-blue-800 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-900 transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none tracking-wide"
-              >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : 'INGRESAR AL SISTEMA'}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center items-center gap-3 py-4 px-4 border border-[#D4AF37]/30 rounded-xl shadow-[0_0_20px_-5px_rgba(212,175,55,0.2)] text-sm font-black text-[#0A2463] bg-gradient-to-r from-[#D4AF37] to-[#FBBF24] hover:to-[#D4AF37] transition-all transform hover:-translate-y-0.5 hover:shadow-[0_0_40px_-5px_rgba(212,175,55,0.4)] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed tracking-widest uppercase mt-6 group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+              {loading ? <Loader2 className="animate-spin" size={20} /> : (
+                <>
+                  <span className="relative z-10">Entrar</span>
+                  <ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform"/>
+                </>
+              )}
+            </button>
           </form>
         </div>
-        <p className="text-center text-xs text-blue-200/80 mt-8 font-medium drop-shadow-sm">
-          © {new Date().getFullYear()} Elevadores Alamex S.A. de C.V. <br/> Todos los derechos reservados.
+
+        <p className="text-center text-[9px] text-white/30 mt-8 font-medium uppercase tracking-[0.3em]">
+          © {new Date().getFullYear()} Alamex Elevadores
         </p>
       </div>
     </div>

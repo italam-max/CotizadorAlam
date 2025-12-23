@@ -26,3 +26,10 @@ export const getNextReference = (quotes: QuoteData[]) => {
   const nextNum = maxId + 1;
   return `ALAM-PROY-${String(nextNum).padStart(4, '0')}`;
 };
+
+export const toTitleCase = (str: string) => {
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
+};

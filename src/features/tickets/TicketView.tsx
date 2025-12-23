@@ -1,363 +1,386 @@
 // ARCHIVO: src/features/tickets/TicketView.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { 
-  ArrowLeft, Send, Clock, CheckCircle2, 
-  User, Paperclip, FileText, LayoutGrid, MessageSquare, AlertCircle, Phone
+  ArrowLeft, Edit3, FileText, CheckCircle2, XCircle, Handshake, 
+  MapPin, Briefcase, History, ShieldAlert, Lock, 
+  Crown, Star, Sparkles, Building, Mail, Phone, ExternalLink, Box,
+  Activity, // <--- Faltaba este para el ROI
+  Send      // <--- Faltaba este para el chat
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
-import { supabase } from '../../supabaseClient';
-import { WhatsappService } from '../../services/whatsappService';
-import { normalizePhone } from '../../services/utils';
+import FollowUpAssistant from './FollowUpAssistant';
 
 interface TicketViewProps {
   quote: QuoteData;
   onBack: () => void;
   onUpdateStatus: (id: number | string, status: QuoteData['status']) => void;
+  allQuotes?: QuoteData[]; 
 }
 
-interface Interaction {
-  id: string;
-  quote_id: number | string;
-  type: 'whatsapp_sent' | 'whatsapp_received' | 'note' | 'system';
-  content: string;
-  created_at: string;
-}
+type Note = {
+    id: string;
+    text: string;
+    date: string;
+    author: string;
+    type: 'manual' | 'system';
+};
 
-export default function TicketView({ quote: initialQuote, onBack, onUpdateStatus }: TicketViewProps) {
-  const [viewingQuote, setViewingQuote] = useState<QuoteData>(initialQuote);
-  const [clientPortfolio, setClientPortfolio] = useState<QuoteData[]>([]);
-  const [allClientQuoteIds, setAllClientQuoteIds] = useState<(string|number)[]>([]);
+// Definición de Tags de Cliente
+const CLIENT_TAGS = [
+    { key: 'NEW', label: 'Cliente Nuevo', color: 'text-cyan-400 border-cyan-500/50 bg-cyan-900/20', icon: Sparkles },
+    { key: 'VIP', label: 'Socio VIP', color: 'text-[#D4AF37] border-[#D4AF37]/50 bg-[#D4AF37]/10', icon: Crown },
+    { key: 'RECURRING', label: 'Recurrente', color: 'text-emerald-400 border-emerald-500/50 bg-emerald-900/20', icon: Star },
+    { key: 'CORPORATE', label: 'Corporativo', color: 'text-indigo-400 border-indigo-500/50 bg-indigo-900/20', icon: Building },
+];
+
+export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = [] }: TicketViewProps) {
   
-  // Chat state
-  const [interactions, setInteractions] = useState<Interaction[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  // Guardas de seguridad
+  if (!quote) return <div className="p-10 text-white">Cargando datos del proyecto...</div>;
 
-  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-  const masterPhone = normalizePhone(initialQuote.clientPhone);
+  const [notes, setNotes] = useState<Note[]>([
+    { id: '1', text: 'Cotización creada y enviada al cliente.', date: quote.projectDate || new Date().toISOString(), author: 'Sistema', type: 'system' }
+  ]);
+  const [newNote, setNewNote] = useState('');
+  const [tagIndex, setTagIndex] = useState(0); 
 
-  // 1. CARGA ROBUSTA: Descarga todo y filtra en cliente para asegurar coincidencias
-  useEffect(() => {
-    const loadClientPortfolio = async () => {
-      let portfolio: QuoteData[] = [];
+  // --- LÓGICA DE NORMALIZACIÓN DE CLIENTES ---
+  const normalizeStr = (str: string) => str ? str.trim().toLowerCase() : '';
 
-      if (masterPhone) {
-        // Obtenemos TODAS las cotizaciones de la base de datos
-        // Hacemos esto para poder aplicar normalizePhone() a cada registro y encontrar al cliente
-        // aunque el formato en BD sea diferente (ej: con guiones vs sin guiones).
-        const { data } = await supabase
-          .from('quotes')
-          .select('*')
-          .order('projectDate', { ascending: false });
+  // Filtramos buscando coincidencias sin importar mayúsculas/minúsculas
+  const relatedQuotes = allQuotes && allQuotes.length > 0 
+    ? allQuotes.filter(q => 
+        q && 
+        normalizeStr(q.clientName) === normalizeStr(quote.clientName) && 
+        q.id !== quote.id
+      ) 
+    : []; 
 
-        if (data) {
-           const rawQuotes = data as any[];
-           // Filtramos manualmente
-           portfolio = rawQuotes
-             .filter(q => normalizePhone(q.client_phone || q.clientPhone) === masterPhone)
-             .map(d => ({
-                id: d.id,
-                status: d.status,
-                clientName: d.client_name || d.clientName,
-                clientPhone: d.client_phone || d.clientPhone,
-                clientEmail: d.client_email || d.clientEmail,
-                projectRef: d.project_ref || d.projectRef,
-                projectDate: d.project_date || d.projectDate,
-                quantity: d.quantity,
-                model: d.model,
-                capacity: d.capacity,
-                stops: d.stops,
-                speed: d.speed,
-                price: d.price,
-                // ... mapea otros campos si es necesario
-             })) as QuoteData[];
-        }
-      }
-
-      // Fallback si no se encontró nada o no hay teléfono
-      if (portfolio.length === 0) {
-        portfolio = [initialQuote];
-      } else {
-        // Si el portfolio existe, nos aseguramos de que el proyecto inicial esté seleccionado
-        const currentMatch = portfolio.find(q => String(q.id) === String(initialQuote.id));
-        if (currentMatch) {
-            setViewingQuote(currentMatch);
-        } else {
-            // Si por alguna razón extraña no está en el filtro (ej. datos en memoria vs DB), lo agregamos
-            portfolio.unshift(initialQuote);
-        }
-      }
-
-      setClientPortfolio(portfolio);
-      
-      // Extraemos TODOS los IDs del cliente para el chat unificado
-      const ids = portfolio.map(q => q.id);
-      setAllClientQuoteIds(ids);
+  const handleAddNote = () => {
+    if (!newNote.trim()) return;
+    const note: Note = {
+        id: Date.now().toString(),
+        text: newNote,
+        date: new Date().toISOString(),
+        author: 'Ejecutivo',
+        type: 'manual'
     };
-
-    loadClientPortfolio();
-  }, [initialQuote.id, masterPhone]);
-
-  // 2. CHAT UNIFICADO: Carga mensajes de CUALQUIERA de los IDs encontrados
-  useEffect(() => {
-    if (allClientQuoteIds.length === 0) return;
-
-    const fetchUnifiedMessages = async () => {
-      const { data } = await supabase
-        .from('interactions')
-        .select('*')
-        .in('quote_id', allClientQuoteIds) // <--- ESTO UNIFICA EL CHAT
-        .order('created_at', { ascending: true });
-
-      if (data) setInteractions(data as any);
-    };
-
-    fetchUnifiedMessages();
-
-    // 3. REALTIME: Escucha todo y filtra si pertenece al cliente
-    const channel = supabase
-      .channel(`unified_room_${masterPhone}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'interactions' },
-        (payload) => {
-          const newMsg = payload.new as Interaction;
-          // ¿Es de alguno de mis proyectos?
-          const isRelated = allClientQuoteIds.some(id => String(id) === String(newMsg.quote_id));
-          
-          if (isRelated) {
-            setInteractions(prev => {
-                if (prev.find(m => m.id === newMsg.id)) return prev;
-                return [...prev, newMsg];
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-
-  }, [allClientQuoteIds]); // Se recarga cuando ya tenemos los IDs del portafolio
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [interactions]);
-
-  // ENVIAR MENSAJE
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-    setSending(true);
-    try {
-        // Enviar a WhatsApp
-        if (viewingQuote.clientPhone) {
-            await WhatsappService.sendMessage(viewingQuote.clientPhone, newMessage);
-        }
-        
-        // Guardar en BD (vinculado al proyecto que estás viendo)
-        await supabase.from('interactions').insert({
-            quote_id: viewingQuote.id,
-            type: viewingQuote.clientPhone ? 'whatsapp_sent' : 'note',
-            content: newMessage,
-            created_at: new Date().toISOString()
-        });
-
-        setNewMessage('');
-    } catch (error: any) {
-        alert(`Error: ${error.message}`);
-    } finally {
-        setSending(false);
-    }
+    setNotes([note, ...notes]);
+    setNewNote('');
   };
 
+  const cycleClientTag = () => {
+    setTagIndex((prev) => (prev + 1) % CLIENT_TAGS.length);
+  };
+
+  const currentTag = CLIENT_TAGS[tagIndex];
+  const TagIcon = currentTag.icon;
+  const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+
+  // Helpers visuales
+  const clientInitial = quote.clientName ? quote.clientName.charAt(0).toUpperCase() : '?';
+  const lastManualNote = notes.find(n => n.type === 'manual')?.date;
+
   return (
-    <div className="flex flex-col h-full bg-slate-100 overflow-hidden rounded-xl border border-slate-300 shadow-xl" style={{ height: 'calc(100vh - 100px)' }}>
+    <div className="h-full flex flex-col bg-[#051338] animate-fadeIn overflow-y-auto custom-scrollbar relative text-white">
       
-      {/* HEADER */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-sm shrink-0 z-20">
+      {/* Fondo Decorativo */}
+      <div className="absolute inset-0 pointer-events-none z-0 opacity-10" style={{
+          backgroundImage:  'radial-gradient(#D4AF37 0.5px, transparent 0.5px), radial-gradient(#D4AF37 0.5px, transparent 0.5px)',
+          backgroundSize: '30px 30px',
+          backgroundPosition: '0 0, 15px 15px'
+      }}></div>
+      
+      {/* HEADER DE COMANDO */}
+      <div className="px-8 py-6 flex items-center justify-between bg-[#020A1A]/80 backdrop-blur-md sticky top-0 z-30 border-b border-[#D4AF37]/20 shadow-2xl">
         <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+            <button 
+                onClick={onBack} 
+                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-[#D4AF37] hover:text-[#051338] transition-all"
+            >
                 <ArrowLeft size={20}/>
             </button>
-            <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shadow-sm">
-                    <User size={20} />
+            <div>
+                <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-black text-white tracking-tight drop-shadow-md">{quote.projectRef}</h1>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusBadgeColor(quote.status)}`}>
+                        {quote.status}
+                    </span>
                 </div>
-                <div>
-                    <h2 className="font-black text-slate-800 text-lg leading-none">{initialQuote.clientName}</h2>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className="flex items-center gap-1 text-xs text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
-                            <Phone size={10} /> {initialQuote.clientPhone || 'Sin N°'}
-                        </span>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">
-                            {clientPortfolio.length} Proyectos Vinculados
-                        </span>
-                    </div>
-                </div>
+                <p className="text-xs text-white/50 font-medium flex items-center gap-1 mt-1">
+                    <Lock size={10}/> Sala de Cierre Segura • Folio: #{quote.id}
+                </p>
             </div>
+        </div>
+
+        <div className="flex gap-3">
+            <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/10 transition-all">
+                <FileText size={16}/> Ver PDF
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-[#051338] rounded-lg text-xs font-bold hover:bg-[#B5942E] transition-all shadow-lg shadow-[#D4AF37]/20">
+                <Edit3 size={16}/> Editar Datos
+            </button>
         </div>
       </div>
 
-      {/* WORKSPACE */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* GRID PRINCIPAL */}
+      <div className="p-6 md:p-8 z-10 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* PANEL IZQUIERDO: EXPEDIENTE (Lista de proyectos) */}
-        <div className="w-72 bg-white border-r border-slate-200 overflow-y-auto hidden md:flex flex-col">
-            <div className="p-4 bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <LayoutGrid size={12}/> Cotizaciones del Cliente
-                </h3>
-            </div>
+        {/* COLUMNA IZQUIERDA: GESTIÓN DE CIERRE (8 Cols) */}
+        <div className="lg:col-span-8 space-y-8">
             
-            <div className="p-2 space-y-2">
-                {clientPortfolio.map(q => {
-                    const isActive = String(q.id) === String(viewingQuote.id);
-                    return (
-                        <div 
-                            key={q.id}
-                            onClick={() => setViewingQuote(q)}
-                            className={`p-3 rounded-xl border cursor-pointer transition-all relative overflow-hidden group ${
-                                isActive 
-                                ? 'bg-blue-50 border-blue-300 shadow-md ring-1 ring-blue-100' 
-                                : 'bg-white border-slate-100 hover:border-blue-200 hover:shadow-sm'
-                            }`}
+            {/* 1. TARJETA DE VALOR (Premium Dark) */}
+            <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#0A2463] to-[#020A1A] shadow-2xl group">
+                {/* Glow effects */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37] rounded-full blur-[100px] opacity-10 pointer-events-none"></div>
+                
+                <div className="p-8 relative z-10">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-xs font-bold text-[#D4AF37] uppercase tracking-[0.2em] mb-2">Valor Potencial</p>
+                            <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-lg">
+                                {formatter.format((quote.price || 0) * (quote.quantity || 1))}
+                            </h2>
+                            <p className="text-sm text-gray-400 mt-2 font-medium flex items-center gap-2">
+                                <Activity size={14} className="text-[#D4AF37]"/> ROI Estimado
+                            </p>
+                        </div>
+                        <div className="text-right hidden md:block">
+                            <div className="inline-flex flex-col items-end">
+                                <span className="text-xs text-gray-400 font-bold uppercase">Configuración</span>
+                                <span className="text-lg font-bold text-white">{quote.quantity} x {quote.model}</span>
+                                <span className="text-xs text-[#D4AF37]">{quote.stops} Paradas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="h-px w-full bg-white/10 my-8"></div>
+
+                    {/* BOTONES DE DECISIÓN CRÍTICA */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button 
+                            onClick={() => onUpdateStatus(quote.id, 'Aprobada')}
+                            className="py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold text-sm shadow-lg hover:shadow-emerald-500/20 transition-all flex flex-col items-center justify-center gap-1 group/btn"
                         >
-                            {isActive && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600"></div>}
-                            
-                            <div className="pl-2">
-                                <div className="flex justify-between items-start mb-1">
-                                    <span className={`text-xs font-bold ${isActive ? 'text-blue-900' : 'text-slate-700'}`}>
-                                        {q.projectRef}
-                                    </span>
-                                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${
-                                        q.status === 'Aprobada' ? 'bg-green-100 text-green-700' : 
-                                        q.status === 'Rechazada' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'
-                                    }`}>{q.status}</span>
-                                </div>
-                                <p className="text-[10px] text-slate-500 mb-1 line-clamp-1">
-                                    {q.model} • {q.stops} Paradas
-                                </p>
-                                <div className="flex justify-between items-end border-t border-slate-100 pt-2">
-                                    <span className="font-black text-slate-800 text-xs">{formatter.format((q.price || 0) * (q.quantity || 1))}</span>
-                                    <span className="text-[9px] text-slate-400">{q.projectDate}</span>
-                                </div>
+                            <div className="flex items-center gap-2">
+                                <CheckCircle2 size={18} className="text-emerald-100"/> Marcar Ganada
+                            </div>
+                            <span className="text-[9px] text-emerald-100 opacity-60 font-normal group-hover/btn:opacity-100">Cerrar trato exitosamente</span>
+                        </button>
+
+                        <button 
+                            onClick={() => onUpdateStatus(quote.id, 'Por Seguimiento')}
+                            className="py-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B5942E] hover:to-[#D4AF37] text-[#051338] font-bold text-sm shadow-lg hover:shadow-[#D4AF37]/20 transition-all flex flex-col items-center justify-center gap-1 group/btn border border-[#D4AF37]/50"
+                        >
+                            <div className="flex items-center gap-2">
+                                <Handshake size={18}/> Iniciar Negociación
+                            </div>
+                            <span className="text-[9px] text-[#051338] opacity-60 font-normal group-hover/btn:opacity-100">Activar etapa de negociación</span>
+                        </button>
+
+                        <button 
+                            onClick={() => onUpdateStatus(quote.id, 'Rechazada')}
+                            className="py-4 rounded-xl bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-gray-300 hover:text-red-400 font-bold text-sm transition-all flex flex-col items-center justify-center gap-1 group/btn"
+                        >
+                            <div className="flex items-center gap-2">
+                                <XCircle size={18}/> Marcar Perdida
+                            </div>
+                            <span className="text-[9px] opacity-40 font-normal group-hover/btn:opacity-100">Archivar proyecto</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. BITÁCORA DE SEGUIMIENTO (INMUTABLE) */}
+            <div className="bg-[#020A1A]/60 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden">
+                <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                        <History size={14} className="text-[#D4AF37]"/> Bitácora de Actividad
+                    </h3>
+                    <span className="text-[9px] text-gray-500 flex items-center gap-1">
+                        <ShieldAlert size={10}/> Registro Inmutable
+                    </span>
+                </div>
+                
+                <div className="p-6">
+                    {/* Input de Nueva Nota */}
+                    <div className="flex gap-3 mb-8">
+                        <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center text-[#051338] shrink-0 font-bold">Yo</div>
+                        <div className="flex-1 relative">
+                            <textarea
+                                value={newNote}
+                                onChange={(e) => setNewNote(e.target.value)}
+                                placeholder="Escribe una nota de seguimiento (llamada, correo, reunión)..."
+                                className="w-full bg-[#051338] border border-white/10 rounded-xl p-3 text-sm text-white placeholder-white/30 focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] outline-none min-h-[80px] resize-none"
+                            />
+                            <div className="absolute bottom-2 right-2 flex gap-2">
+                                <button 
+                                    onClick={handleAddNote}
+                                    disabled={!newNote.trim()}
+                                    className="p-2 bg-[#D4AF37] text-[#051338] rounded-lg font-bold hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Send size={14}/>
+                                </button>
                             </div>
                         </div>
-                    );
-                })}
+                    </div>
+
+                    {/* Historial (Timeline) */}
+                    <div className="space-y-6 pl-4 border-l border-white/10">
+                        {notes.map((note) => (
+                            <div key={note.id} className="relative pl-6 group">
+                                <div className={`absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-[#051338] ${note.type === 'manual' ? 'bg-[#D4AF37]' : 'bg-blue-500'}`}></div>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-[10px] font-bold uppercase ${note.type === 'manual' ? 'text-[#D4AF37]' : 'text-blue-400'}`}>
+                                            {note.author}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                            {new Date(note.date).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' })}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm text-gray-300 leading-relaxed bg-white/5 p-3 rounded-lg border border-white/5">
+                                        {note.text}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
 
-        {/* PANEL CENTRAL: CHAT UNIFICADO */}
-        <div className="flex-1 flex flex-col bg-[#e5ddd5] relative min-w-[350px] shadow-inner">
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{backgroundImage: 'radial-gradient(#4a5568 1px, transparent 1px)', backgroundSize: '20px 20px'}}></div>
+        {/* COLUMNA DERECHA: CLIENTE E INTELIGENCIA (4 Cols) */}
+        <div className="lg:col-span-4 space-y-6">
             
-            <div className="bg-white/90 backdrop-blur border-b border-slate-200 px-4 py-2 flex justify-between items-center z-10 text-xs text-slate-600 shadow-sm">
-                <span className="flex items-center gap-2 font-bold"><MessageSquare size={14} className="text-green-600"/> Chat Unificado</span>
-                <span className="opacity-70">Contexto actual: <b>{viewingQuote.projectRef}</b></span>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth">
-                {interactions.map((msg) => {
-                    const isMe = msg.type === 'whatsapp_sent' || msg.type === 'note';
-                    const isSystem = msg.type === 'system';
+            {/* 1. TARJETA DE IDENTIDAD (CONTACTO) */}
+            <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37] to-[#B5942E] rounded-2xl opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+                <div className="relative bg-[#020A1A] rounded-2xl p-6 h-full flex flex-col items-center">
                     
-                    // Ver si el mensaje pertenece al proyecto que estamos viendo
-                    const isFromCurrentView = String(msg.quote_id) === String(viewingQuote.id);
-                    // Buscar el proyecto origen para mostrar la etiqueta
-                    const originQuote = clientPortfolio.find(q => String(q.id) === String(msg.quote_id));
-
-                    if (isSystem) return <div key={msg.id} className="text-center my-2"><span className="text-[10px] bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full border border-yellow-200">{msg.content}</span></div>;
-
-                    return (
-                        <div key={msg.id} className={`flex flex-col w-full ${isMe ? 'items-end' : 'items-start'}`}>
-                            
-                            {/* Etiqueta de Referencia (si es de otro proyecto del mismo cliente) */}
-                            {!isFromCurrentView && originQuote && (
-                                <span className={`text-[9px] mb-0.5 px-2 py-0.5 rounded-full font-bold shadow-sm ${isMe ? 'bg-blue-100 text-blue-700 mr-1' : 'bg-gray-200 text-gray-600 ml-1'}`}>
-                                    Ref: {originQuote.projectRef}
-                                </span>
-                            )}
-
-                            <div className={`max-w-[85%] rounded-xl px-3 py-2 shadow-sm relative text-sm border ${
-                                isMe 
-                                ? 'bg-[#d9fdd3] text-slate-900 border-[#c2eec0] rounded-tr-none' 
-                                : 'bg-white text-slate-900 border-white rounded-tl-none'
-                            }`}>
-                                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                                <div className="text-[9px] text-gray-400 mt-1 flex gap-1 items-center justify-end">
-                                    {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                    {isMe && <CheckCircle2 size={12} className="text-blue-500"/>}
-                                </div>
-                            </div>
+                    <div className="w-24 h-24 rounded-full border-4 border-[#020A1A] bg-gradient-to-b from-gray-100 to-gray-300 flex items-center justify-center text-[#0A2463] text-4xl font-black mb-4 shadow-[0_10px_30px_rgba(255,255,255,0.1)] absolute -top-12 ring-2 ring-[#D4AF37]/50">
+                        {clientInitial}
+                    </div>
+                    
+                    <div className="mt-10 mb-4 w-full text-center">
+                        <h2 className="text-xl font-bold text-white leading-tight mb-2">{quote.clientName || 'Cliente'}</h2>
+                        
+                        <div className="flex justify-center mb-6">
+                            <button 
+                                onClick={cycleClientTag}
+                                className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border flex items-center gap-2 transition-all hover:scale-105 active:scale-95 ${currentTag.color}`}
+                                title="Clic para cambiar clasificación"
+                            >
+                                <TagIcon size={12}/> {currentTag.label}
+                            </button>
                         </div>
-                    );
-                })}
-                <div ref={chatEndRef} />
-            </div>
 
-            {/* Input */}
-            <div className="bg-slate-100 p-3 border-t border-slate-200 z-10">
-                <div className="flex gap-2">
-                    <div className="flex-1 bg-white rounded-full flex items-center border border-slate-300 focus-within:ring-2 focus-within:ring-green-500/50 transition-all shadow-sm pl-2">
-                        <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><Paperclip size={18}/></button>
-                        <input 
-                            type="text" 
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder={`Escribir sobre ${viewingQuote.projectRef}...`}
-                            className="flex-1 bg-transparent border-none outline-none text-sm py-2.5 px-2"
-                        />
-                    </div>
-                    <button onClick={handleSendMessage} disabled={sending || !newMessage.trim()} className="bg-[#00a884] hover:bg-[#008f6f] text-white p-3 rounded-full transition-all shadow-md transform active:scale-95 disabled:opacity-50 disabled:transform-none">
-                        {sending ? <Clock size={20} className="animate-spin"/> : <Send size={20} className="ml-0.5"/>}
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        {/* PANEL DERECHO: DETALLE DEL PROYECTO */}
-        <div className="w-80 bg-white border-l border-slate-200 overflow-y-auto hidden xl:flex flex-col p-6">
-            <div className="mb-6">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Detalle del Proyecto</span>
-                <h3 className="font-black text-slate-800 text-xl">{viewingQuote.projectRef}</h3>
-                <p className="text-xs text-slate-500">{viewingQuote.model}</p>
-            </div>
-
-            <div className="space-y-6">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Total con IVA</p>
-                    <p className="text-2xl font-black text-blue-900">{formatter.format(((viewingQuote.price||0)*(viewingQuote.quantity||1))*1.16)}</p>
-                    
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                        <button onClick={() => onUpdateStatus(viewingQuote.id, 'Aprobada')} className="py-2 bg-green-600 text-white font-bold text-xs rounded-lg hover:bg-green-700 transition-colors shadow-sm">
-                            Ganada
-                        </button>
-                        <button onClick={() => onUpdateStatus(viewingQuote.id, 'Rechazada')} className="py-2 bg-white border border-red-200 text-red-600 font-bold text-xs rounded-lg hover:bg-red-50 transition-colors">
-                            Perdida
-                        </button>
+                        <div className="space-y-3 w-full border-t border-white/10 pt-4 text-left">
+                            <ContactRow icon={Mail} label="Correo" value="contacto@cliente.com" />
+                            <ContactRow icon={Phone} label="Teléfono" value="+52 55 1234 5678" />
+                            <ContactRow icon={MapPin} label="Ubicación" value="Ciudad de México, CDMX" />
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div>
-                    <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2 text-sm"><FileText size={16}/> Datos Técnicos</h4>
-                    <ul className="space-y-2 text-sm text-slate-600 bg-white border border-slate-100 rounded-lg p-3">
-                        <li className="flex justify-between border-b border-slate-50 pb-1"><span>Paradas:</span> <span className="font-bold">{viewingQuote.stops}</span></li>
-                        <li className="flex justify-between border-b border-slate-50 pb-1"><span>Capacidad:</span> <span className="font-bold">{viewingQuote.capacity} kg</span></li>
-                        <li className="flex justify-between border-b border-slate-50 pb-1"><span>Velocidad:</span> <span className="font-bold">{viewingQuote.speed} m/s</span></li>
-                        <li className="flex justify-between pt-1"><span>Unidades:</span> <span className="font-bold">{viewingQuote.quantity}</span></li>
-                    </ul>
+            {/* 2. VENTANA DE PROYECTOS RELACIONADOS (LÓGICA NORMALIZADA) */}
+            <div className="bg-[#020A1A]/60 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden">
+                <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h3 className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                        <Box size={14} className="text-[#D4AF37]"/> Portafolio del Cliente
+                    </h3>
+                    <span className="bg-white/10 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        {relatedQuotes.length}
+                    </span>
                 </div>
-
-                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-100 text-xs text-yellow-800">
-                    <p className="font-bold flex items-center gap-2 mb-1"><AlertCircle size={14}/> Nota:</p>
-                    <p>Los mensajes enviados se asociarán a <b>{viewingQuote.projectRef}</b> pero serán visibles en el historial unificado.</p>
+                
+                <div className="p-2 space-y-1 max-h-[250px] overflow-y-auto custom-scrollbar">
+                    {relatedQuotes.length > 0 ? (
+                        relatedQuotes.map((rel: any) => (
+                            <div key={rel.id} className="p-3 hover:bg-white/5 rounded-xl border border-transparent hover:border-[#D4AF37]/20 group transition-all cursor-pointer flex justify-between items-center">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs font-bold text-white group-hover:text-[#D4AF37] transition-colors">{rel.projectRef}</p>
+                                        <ExternalLink size={10} className="text-gray-600 group-hover:text-[#D4AF37] opacity-0 group-hover:opacity-100 transition-opacity"/>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 mt-0.5">{rel.projectDate} • {rel.model || 'N/A'}</p>
+                                </div>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${getStatusBadgeColor(rel.status)}`}>
+                                    {rel.status}
+                                </span>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-xs text-gray-500 py-4 italic">No hay otros proyectos.</p>
+                    )}
                 </div>
             </div>
-        </div>
 
+            {/* 3. ASISTENTE DE SEGUIMIENTO (Importado) */}
+            <FollowUpAssistant quote={quote} lastNoteDate={lastManualNote} />
+
+            {/* 4. PROGRESO VISUAL */}
+            <div className="bg-[#020A1A]/60 p-6 rounded-2xl border border-white/10">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Briefcase size={14} className="text-[#D4AF37]"/> Fase Actual
+                </h3>
+                <div className="space-y-6 relative">
+                    <div className="absolute left-3 top-2 bottom-2 w-px bg-white/10"></div>
+                    <StatusItem label="Borrador" isActive={true} isCompleted={true} />
+                    <StatusItem label="Enviada" isActive={true} isCompleted={true} />
+                    <StatusItem 
+                        label="En Negociación" 
+                        isActive={['Por Seguimiento', 'Aprobada'].includes(quote.status)} 
+                        isCompleted={quote.status === 'Aprobada'} 
+                        isCurrent={quote.status === 'Por Seguimiento'}
+                    />
+                    <StatusItem label="Cierre Ganado" isActive={quote.status === 'Aprobada'} isCompleted={quote.status === 'Aprobada'} isFinal />
+                </div>
+            </div>
+
+        </div>
       </div>
     </div>
   );
 }
+
+// --- SUBCOMPONENTES ---
+
+const ContactRow = ({ icon: Icon, label, value }: any) => (
+    <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group cursor-default">
+        <div className="w-8 h-8 rounded-full bg-[#0A2463]/50 flex items-center justify-center text-[#D4AF37] shrink-0 border border-[#D4AF37]/20 group-hover:border-[#D4AF37]/50">
+            <Icon size={14} />
+        </div>
+        <div className="flex-1 min-w-0">
+            <p className="text-[9px] text-gray-400 uppercase tracking-wider">{label}</p>
+            <p className="text-xs font-bold text-white truncate group-hover:text-[#D4AF37] transition-colors">{value}</p>
+        </div>
+    </div>
+);
+
+const StatusItem = ({ label, isActive, isCompleted, isCurrent, isFinal }: any) => (
+    <div className="flex items-center gap-3 relative z-10">
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all ${
+            isCompleted 
+            ? 'bg-[#D4AF37] border-[#D4AF37] text-[#051338]' 
+            : isActive 
+                ? 'bg-[#051338] border-[#D4AF37] text-[#D4AF37]' 
+                : 'bg-[#051338] border-gray-600 text-transparent'
+        }`}>
+            {isCompleted && <CheckCircle2 size={12}/>}
+            {isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] animate-pulse"></div>}
+        </div>
+        <p className={`text-xs font-bold ${isActive ? (isFinal && isCompleted ? 'text-emerald-400' : 'text-white') : 'text-gray-600'}`}>
+            {label}
+        </p>
+    </div>
+);
+
+const getStatusBadgeColor = (status: string) => {
+    if (status === 'Aprobada') return "bg-emerald-500/20 text-emerald-400 border-emerald-500/50";
+    if (status === 'Rechazada') return "bg-red-500/20 text-red-400 border-red-500/50";
+    if (status === 'Por Seguimiento') return "bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]/50";
+    if (status === 'Enviada') return "bg-blue-500/20 text-blue-400 border-blue-500/50";
+    return "bg-white/10 text-gray-300 border-white/20";
+};

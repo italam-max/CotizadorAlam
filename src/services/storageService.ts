@@ -2,7 +2,7 @@
 import type { QuoteData, AppSettings } from '../types';
 import { INITIAL_SETTINGS } from '../data/constants'; 
 import { supabase } from '../supabaseClient';
-import { normalizePhone } from './utils'; // Importamos la utilidad de normalización
+import { normalizePhone } from './utils'; 
 
 const DB_KEYS = { SETTINGS: 'alamex_settings_v1' };
 
@@ -11,7 +11,6 @@ const mapToDb = (q: QuoteData) => ({
   status: q.status,
   current_stage: q.currentStage,
   client_name: q.clientName,
-  // AQUI EL CAMBIO: Normalizamos el teléfono antes de guardar (solo dígitos)
   client_phone: normalizePhone(q.clientPhone),
   client_email: q.clientEmail,
   project_ref: q.projectRef,
@@ -56,6 +55,7 @@ const mapFromDb = (dbItem: any): QuoteData => ({
   id: dbItem.id,
   status: dbItem.status,
   currentStage: dbItem.current_stage || 'ingenieria',
+  updated_at: dbItem.updated_at, // <--- MAPEO NUEVO
   clientName: dbItem.client_name,
   clientPhone: dbItem.client_phone,
   clientEmail: dbItem.client_email,
@@ -103,7 +103,7 @@ export const BackendService = {
       const { data, error } = await supabase
         .from('quotes')
         .select('*')
-        .order('id', { ascending: false });
+        .order('updated_at', { ascending: false }); // Ordenamos por fecha de actualización
 
       if (error) throw error;
       return data ? data.map(mapFromDb) : [];

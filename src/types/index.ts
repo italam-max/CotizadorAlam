@@ -5,10 +5,11 @@ export type ElevatorModelId = 'MR' | 'MRL-L' | 'MRL-G' | 'HYD' | 'PLAT' | 'CAR';
 export interface QuoteData {
   id: number | string;
   
-  // AQUÍ ESTÁ EL CAMBIO IMPORTANTE: AGREGAMOS 'Aprobada' y 'Rechazada'
+  // Estatus ampliado
   status: 'Borrador' | 'Sincronizado' | 'Enviada' | 'Por Seguimiento' | 'Aprobada' | 'Rechazada';
   
   currentStage?: string;
+  updated_at?: string; // <--- NUEVO CAMPO
   
   // 1. Contacto & Proyecto
   clientName: string;
@@ -17,7 +18,7 @@ export interface QuoteData {
   projectRef: string;
   projectDate: string;
   
-  // Campos opcionales para PDF y Preview
+  // Campos opcionales
   contactEmail?: string; 
   type?: string;         
   machineType?: string;  
