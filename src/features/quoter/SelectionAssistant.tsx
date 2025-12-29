@@ -1,8 +1,8 @@
 // ARCHIVO: src/features/quoter/SelectionAssistant.tsx
 import { useState, useEffect } from 'react';
 import { 
-  Sparkles, X, CheckCircle2, AlertTriangle, Box, ArrowRight, ArrowLeft, 
-  FileText, Scale, Activity, RefreshCcw, Ruler, ShieldCheck, ChevronRight,
+  Sparkles, X, AlertTriangle, Box, ArrowLeft, 
+  Scale, Activity, RefreshCcw, Ruler, ChevronRight,
   Layers, DoorOpen, Users // <--- Nuevo icono
 } from 'lucide-react';
 import type { QuoteData } from '../../types';

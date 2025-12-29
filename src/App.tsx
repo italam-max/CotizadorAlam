@@ -159,7 +159,6 @@ export default function ElevatorQuoter() {
     showNotify('Datos de tráfico importados');
   };
 
-  const handleTrackQuote = (quote: QuoteData) => { setWorkingQuote(quote); setView('tracker'); };
   const handleOpenTracker = () => { setWorkingQuote(INITIAL_FORM_STATE); setView('tracker'); };
 
   const handleSelectQuoteSmart = (quote: QuoteData) => {

@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/quoter/QuotePreview.tsx
 import { useState } from 'react';
 import { 
-  Printer, ArrowLeft, Send, CheckCircle2, Shield, Clock, 
+  Printer, ArrowLeft, Send, Shield, Clock, 
   CreditCard, Calendar, Edit3, FileText, Download 
 } from 'lucide-react';
 import type { QuoteData, CommercialTerms } from '../../types';
@@ -16,7 +16,7 @@ interface QuotePreviewProps {
   onUpdateData?: (updatedQuote: QuoteData) => void; 
 }
 
-export default function QuotePreview({ data, onBack, onUpdateStatus, onGoToTicket, onUpdateData }: QuotePreviewProps) {
+export default function QuotePreview({ data, onBack, onUpdateStatus, onUpdateData }: QuotePreviewProps) {
   const [isEditingTerms, setIsEditingTerms] = useState(false);
   
   // Usar datos locales para la vista previa inmediata al editar

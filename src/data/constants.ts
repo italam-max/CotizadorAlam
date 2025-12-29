@@ -241,6 +241,7 @@ export const INITIAL_FORM_STATE: QuoteData = {
   travel: 18000,
   overhead: 5000,
   pit: 1200,
+  price: 0, // <--- CORRECCIÓN AQUI: Se agregó el precio inicial
   
   entrances: 'Simple',
   shaftWidth: 1800,

@@ -1,6 +1,6 @@
 // ARCHIVO: src/features/tools/ProjectPlanner.tsx
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, RefreshCcw, Activity, Clock, Layers, Flag, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Calendar, RefreshCcw, Activity, Clock, Layers, Flag, CheckCircle2 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { STANDARD_PHASES } from '../../data/constants';
 

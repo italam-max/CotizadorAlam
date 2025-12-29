@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   Shield, Clock, CreditCard, FileText, Calendar, DollarSign, 
-  CheckCircle2, Save, X 
+  Save, X 
 } from 'lucide-react';
 import type { QuoteData, CommercialTerms } from '../../types';
 
@@ -63,21 +63,21 @@ export default function QuoteCommercialEditor({ data, onSave, onCancel }: QuoteC
                 label="Condiciones de Pago" 
                 icon={CreditCard} 
                 value={terms.paymentMethod}
-                onChange={(v) => handleChange('paymentMethod', v)}
+                onChange={(v: string) => handleChange('paymentMethod', v)}
                 placeholder="Ej: 50% Anticipo..."
             />
             <InputBlock 
                 label="Tiempo de Entrega" 
                 icon={Clock} 
                 value={terms.deliveryTime}
-                onChange={(v) => handleChange('deliveryTime', v)}
+                onChange={(v: string) => handleChange('deliveryTime', v)}
                 placeholder="Ej: 10-12 semanas..."
             />
             <InputBlock 
                 label="Moneda y Divisa" 
                 icon={DollarSign} 
                 value={terms.currency}
-                onChange={(v) => handleChange('currency', v)}
+                onChange={(v: string) => handleChange('currency', v)}
                 placeholder="Ej: MXN + IVA"
             />
         </div>
@@ -88,14 +88,14 @@ export default function QuoteCommercialEditor({ data, onSave, onCancel }: QuoteC
                 label="Garantía Extendida" 
                 icon={Shield} 
                 value={terms.warranty}
-                onChange={(v) => handleChange('warranty', v)}
+                onChange={(v: string) => handleChange('warranty', v)}
                 placeholder="Ej: 12 meses..."
             />
              <InputBlock 
                 label="Vigencia de Oferta" 
                 icon={Calendar} 
                 value={terms.validity}
-                onChange={(v) => handleChange('validity', v)}
+                onChange={(v: string) => handleChange('validity', v)}
                 placeholder="Ej: 15 días..."
             />
         </div>

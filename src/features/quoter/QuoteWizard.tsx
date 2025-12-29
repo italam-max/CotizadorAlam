@@ -118,7 +118,7 @@ export default function QuoteWizard(props: QuoteWizardProps) {
             existingQuotes={props.existingQuotes}
             onUpdate={props.onUpdate}
             onSave={props.onSave}
-            onExit={props.onExit} // Por si ManualQuoter tuviera botón de salir
+            // onExit={props.onExit} <--- CORRECCIÓN: Eliminamos esta prop porque ManualQuoter no la acepta
             onViewPreview={props.onViewPreview}
             onOpenOpsCalculator={props.onOpenOpsCalculator}
         />

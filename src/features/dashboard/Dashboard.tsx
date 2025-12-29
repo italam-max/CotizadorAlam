@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/dashboard/Dashboard.tsx
 import { useState } from 'react';
 import {
-  Search, ArrowUpRight, Clock, CheckCircle2, XCircle,
+  Search, Clock, CheckCircle2, XCircle,
   FileText, Sparkles, DollarSign, Activity, Calendar, User, ChevronRight, TrendingUp
 } from 'lucide-react';
 import type { QuoteData } from '../../types';

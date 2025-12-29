@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { 
   Building, Calculator, Box, Layout, Settings, 
-  Save, FileText, CheckCircle2, ArrowRight, ArrowLeft 
+  Save, FileText, ArrowRight, ArrowLeft 
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { InputGroup } from '../../components/ui/InputGroup';
