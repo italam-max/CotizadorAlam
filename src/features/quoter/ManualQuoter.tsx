@@ -1,13 +1,14 @@
 // ARCHIVO: src/features/quoter/ManualQuoter.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Building, Calculator, Box, Layout, Settings, 
-  Save, FileText, ArrowRight, ArrowLeft 
+  Save, FileText, AlertTriangle, RefreshCcw
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { InputGroup } from '../../components/ui/InputGroup';
 import { ClientAutocomplete } from '../../components/ui/ClientAutocomplete';
 import { toTitleCase } from '../../services/utils';
+import { validateConfiguration, getSmartDefaults } from '../../services/calculations'; // <--- IMPORTAMOS getSmartDefaults
 
 interface ManualQuoterProps {
   initialData: QuoteData;
@@ -16,6 +17,7 @@ interface ManualQuoterProps {
   onSave: (data: QuoteData) => void;
   onViewPreview: () => void;
   onOpenOpsCalculator: () => void;
+  onExit?: () => void;
 }
 
 const TABS = [
@@ -33,9 +35,27 @@ export default function ManualQuoter({
   const [activeTab, setActiveTab] = useState(1);
   const [formData, setFormData] = useState<QuoteData>(initialData);
   const [isDirty, setIsDirty] = useState(false);
+  const [validation, setValidation] = useState<{warnings: string[], suggestions: Partial<QuoteData>}>({warnings: [], suggestions: {}});
+
+  // Validar cada vez que cambian los datos críticos
+  useEffect(() => {
+      const res = validateConfiguration(formData);
+      setValidation(res);
+  }, [formData.capacity, formData.model, formData.shaftWidth, formData.shaftDepth, formData.speed, formData.travel, formData.stops]);
 
   const updateField = (field: keyof QuoteData, value: any) => {
-    const newData = { ...formData, [field]: value };
+    let newData = { ...formData, [field]: value };
+
+    // --- LÓGICA DE AUTO-COMPLETADO INTELIGENTE (Smart Defaults) ---
+    // Si cambio la capacidad, actualizo automáticamente el modelo y dimensiones sugeridas
+    if (field === 'capacity') {
+        const defaults = getSmartDefaults(Number(value), formData.travel, formData.stops);
+        newData = { ...newData, ...defaults };
+    }
+    // Si cambio el recorrido o paradas, recalculo recomendaciones (ej. límites hidráulicos)
+    // Nota: Aquí solo aplicamos cambios suaves si no afectan drásticamente lo que el usuario ya eligió, 
+    // pero para capacidad (driver principal) aplicamos todo.
+    
     setFormData(newData);
     onUpdate(newData);
     setIsDirty(true);
@@ -49,6 +69,13 @@ export default function ManualQuoter({
     };
     onSave(cleanData);
     setIsDirty(false);
+  };
+
+  const applySuggestions = () => {
+      const newData = { ...formData, ...validation.suggestions };
+      setFormData(newData);
+      onUpdate(newData);
+      setIsDirty(true);
   };
 
   return (
@@ -86,6 +113,28 @@ export default function ManualQuoter({
             </button>
         </div>
       </div>
+
+      {/* BARRA DE ALERTAS DE INGENIERÍA (VALIDACIÓN ACTIVA) */}
+      {validation.warnings.length > 0 && (
+          <div className="bg-red-50 border-b border-red-200 px-8 py-3 flex items-start justify-between animate-slideDown">
+              <div className="flex gap-3">
+                  <AlertTriangle className="text-red-600 shrink-0 mt-0.5" size={18}/>
+                  <div className="space-y-1">
+                      {validation.warnings.map((w, idx) => (
+                          <p key={idx} className="text-xs text-red-800 font-bold">{w}</p>
+                      ))}
+                  </div>
+              </div>
+              {Object.keys(validation.suggestions).length > 0 && (
+                  <button 
+                    onClick={applySuggestions}
+                    className="flex items-center gap-2 bg-red-100 hover:bg-red-200 text-red-900 px-3 py-1 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                  >
+                      <RefreshCcw size={14}/> Corregir según Norma
+                  </button>
+              )}
+          </div>
+      )}
 
       {/* CONTENIDO DEL FORMULARIO */}
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -127,16 +176,24 @@ export default function ManualQuoter({
                         <button onClick={onOpenOpsCalculator} className="text-xs text-[#0A2463] underline font-bold">Calculadora</button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <InputGroup label="Modelo">
-                            <select value={formData.model} onChange={e => updateField('model', e.target.value)} className="form-select font-bold">
-                                <option value="MRL-G">MRL-G (Gearless)</option>
-                                <option value="MR">MR (Con Cuarto)</option>
-                                <option value="Home Lift">Home Lift</option>
-                                <option value="Montacargas">Montacargas</option>
+                        {/* Al cambiar la capacidad, se disparan los Defaults Inteligentes */}
+                        <InputGroup label="Capacidad (kg)" helpText="Al cambiar esto se ajustará el Modelo automáticamente">
+                            <select value={formData.capacity} onChange={e => updateField('capacity', Number(e.target.value))} className="form-select font-bold">
+                                {[320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500].map(c => (
+                                    <option key={c} value={c}>{c} kg</option>
+                                ))}
                             </select>
                         </InputGroup>
-                        <InputGroup label="Capacidad (kg)">
-                            <input type="number" step="50" value={formData.capacity} onChange={e => updateField('capacity', Number(e.target.value))} className="form-input" />
+                        <InputGroup label="Modelo Sugerido" helpText="Cambiado automáticamente según carga">
+                            <select value={formData.model} onChange={e => updateField('model', e.target.value)} className="form-select font-bold">
+                                <option value="MRL-G">MRL-G (Gearless)</option>
+                                <option value="MRL-L">MRL-L (Lite)</option>
+                                <option value="MR">MR (Con Cuarto)</option>
+                                <option value="HYD">Hidráulico</option>
+                                <option value="Home Lift">Home Lift</option>
+                                <option value="PLAT">Plataforma</option>
+                                <option value="CAR">Apila Autos</option>
+                            </select>
                         </InputGroup>
                         <InputGroup label="Personas">
                             <input type="number" value={formData.persons || 0} onChange={e => updateField('persons', Number(e.target.value))} className="form-input" />
@@ -146,6 +203,8 @@ export default function ManualQuoter({
                         </InputGroup>
                         <InputGroup label="Tracción">
                             <select value={formData.traction || '1:1'} onChange={e => updateField('traction', e.target.value)} className="form-select">
+                                <option value="Bandas Planas (STM)">Bandas Planas (STM)</option>
+                                <option value="Cable de Acero">Cable de Acero</option>
                                 <option value="1:1">1:1 (Directa)</option>
                                 <option value="2:1">2:1 (Desmultiplicada)</option>
                                 <option value="4:1">4:1</option>
@@ -183,6 +242,12 @@ export default function ManualQuoter({
                                 <option value="Concreto">Concreto</option>
                                 <option value="Estructura Metálica">Estructura Metálica</option>
                                 <option value="Mampostería">Mampostería</option>
+                            </select>
+                        </InputGroup>
+                        <InputGroup label="Suministro Cubo">
+                             <select value={formData.shaftConstructionReq || 'No'} onChange={e => updateField('shaftConstructionReq', e.target.value)} className="form-select">
+                                <option value="No">Cliente</option>
+                                <option value="Sí">Alamex (Estructura)</option>
                             </select>
                         </InputGroup>
                     </div>
@@ -285,32 +350,6 @@ export default function ManualQuoter({
 
         </div>
       </div>
-      
-      {/* NAVEGACIÓN INFERIOR RÁPIDA */}
-      <div className="bg-white border-t border-gray-200 p-4 flex justify-between items-center z-20">
-            <button 
-                onClick={() => setActiveTab(prev => Math.max(1, prev - 1))}
-                disabled={activeTab === 1}
-                className="px-4 py-2 text-gray-500 font-bold flex items-center gap-2 hover:bg-gray-100 rounded-lg disabled:opacity-30"
-            >
-                <ArrowLeft size={16}/> Anterior
-            </button>
-            
-            <div className="flex gap-2">
-                 {[1,2,3,4,5].map(step => (
-                     <div key={step} className={`w-2 h-2 rounded-full ${activeTab === step ? 'bg-[#0A2463]' : 'bg-gray-200'}`}></div>
-                 ))}
-            </div>
-
-            <button 
-                onClick={() => setActiveTab(prev => Math.min(5, prev + 1))}
-                disabled={activeTab === 5}
-                className="px-4 py-2 text-[#0A2463] font-bold flex items-center gap-2 hover:bg-[#0A2463]/5 rounded-lg disabled:opacity-30"
-            >
-                Siguiente <ArrowRight size={16}/>
-            </button>
-      </div>
-
     </div>
   );
 }

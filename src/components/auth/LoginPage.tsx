@@ -1,11 +1,12 @@
 // ARCHIVO: src/components/auth/LoginPage.tsx
 import { useState } from 'react';
-import { Lock, Mail, AlertCircle, Loader2, Sparkles, ArrowRight, Moon } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Loader2, Sparkles, ArrowRight, Moon, Eye, EyeOff } from 'lucide-react'; // 1. Agregamos iconos
 import { supabase } from '../../supabaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // 2. Nuevo estado para visibilidad
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +49,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-md px-6 animate-fadeIn">
         
         {/* LOGOTIPO FLOTANTE Y TÍTULOS */}
-        <div className="text-center mb-10 relative"> {/* Margen inferior reducido para subir el formulario */}
+        <div className="text-center mb-10 relative">
             
             {/* Logo en cristal */}
             <div className="inline-flex relative group">
@@ -65,7 +66,7 @@ export default function LoginPage() {
             {/* Título Principal */}
             <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight mt-8 mb-4 drop-shadow-2xl">ALAMEX</h1>
             
-            {/* ESLOGAN HORIZONTAL (Todo seguido) */}
+            {/* ESLOGAN HORIZONTAL */}
             <div className="flex items-center justify-center gap-4 opacity-100 w-full">
                 <div className="h-px flex-1 max-w-[60px] md:max-w-[100px] bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent opacity-80"></div>
                 
@@ -129,14 +130,26 @@ export default function LoginPage() {
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
                   <Lock className="h-5 w-5 text-[#D4AF37]/60 group-focus-within:text-[#D4AF37] transition-colors" />
                 </div>
+                
+                {/* 3. Input modificado para toggle de contraseña */}
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-12 pr-4 py-4 bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none text-sm font-medium text-white placeholder-white/20 transition-all shadow-inner hover:bg-black/50"
+                  className="block w-full pl-12 pr-12 py-4 bg-black/40 border border-white/10 rounded-xl focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] outline-none text-sm font-medium text-white placeholder-white/20 transition-all shadow-inner hover:bg-black/50"
                   placeholder="••••••••"
                 />
+                
+                {/* Botón de Ojo */}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-[#D4AF37]/60 hover:text-[#D4AF37] transition-colors z-20 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+
               </div>
             </div>
 

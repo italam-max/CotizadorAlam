@@ -4,8 +4,8 @@ import {
   ArrowLeft, Edit3, FileText, CheckCircle2, XCircle, Handshake, 
   MapPin, Briefcase, History, ShieldAlert, Lock, 
   Crown, Star, Sparkles, Building, Mail, Phone, ExternalLink, Box,
-  Activity, // <--- Faltaba este para el ROI
-  Send      // <--- Faltaba este para el chat
+  Activity,
+  Send
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import FollowUpAssistant from './FollowUpAssistant';
@@ -14,6 +14,7 @@ interface TicketViewProps {
   quote: QuoteData;
   onBack: () => void;
   onUpdateStatus: (id: number | string, status: QuoteData['status']) => void;
+  onEdit: () => void; // <--- 1. NUEVA PROP
   allQuotes?: QuoteData[]; 
 }
 
@@ -33,7 +34,7 @@ const CLIENT_TAGS = [
     { key: 'CORPORATE', label: 'Corporativo', color: 'text-indigo-400 border-indigo-500/50 bg-indigo-900/20', icon: Building },
 ];
 
-export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = [] }: TicketViewProps) {
+export default function TicketView({ quote, onBack, onUpdateStatus, onEdit, allQuotes = [] }: TicketViewProps) {
   
   // Guardas de seguridad
   if (!quote) return <div className="p-10 text-white">Cargando datos del proyecto...</div>;
@@ -47,7 +48,6 @@ export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = 
   // --- LÓGICA DE NORMALIZACIÓN DE CLIENTES ---
   const normalizeStr = (str: string) => str ? str.trim().toLowerCase() : '';
 
-  // Filtramos buscando coincidencias sin importar mayúsculas/minúsculas
   const relatedQuotes = allQuotes && allQuotes.length > 0 
     ? allQuotes.filter(q => 
         q && 
@@ -77,7 +77,6 @@ export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = 
   const TagIcon = currentTag.icon;
   const formatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
-  // Helpers visuales
   const clientInitial = quote.clientName ? quote.clientName.charAt(0).toUpperCase() : '?';
   const lastManualNote = notes.find(n => n.type === 'manual')?.date;
 
@@ -117,21 +116,25 @@ export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = 
             <button className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/10 transition-all">
                 <FileText size={16}/> Ver PDF
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-[#051338] rounded-lg text-xs font-bold hover:bg-[#B5942E] transition-all shadow-lg shadow-[#D4AF37]/20">
+            {/* 2. CONECTAMOS EL BOTÓN */}
+            <button 
+                onClick={onEdit} 
+                className="flex items-center gap-2 px-4 py-2 bg-[#D4AF37] text-[#051338] rounded-lg text-xs font-bold hover:bg-[#B5942E] transition-all shadow-lg shadow-[#D4AF37]/20"
+            >
                 <Edit3 size={16}/> Editar Datos
             </button>
         </div>
       </div>
 
+      {/* ... (RESTO DEL CÓDIGO SIN CAMBIOS) ... */}
+      
       {/* GRID PRINCIPAL */}
       <div className="p-6 md:p-8 z-10 max-w-[1600px] mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
+        {/* ... */}
         {/* COLUMNA IZQUIERDA: GESTIÓN DE CIERRE (8 Cols) */}
         <div className="lg:col-span-8 space-y-8">
-            
             {/* 1. TARJETA DE VALOR (Premium Dark) */}
             <div className="relative rounded-3xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#0A2463] to-[#020A1A] shadow-2xl group">
-                {/* Glow effects */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4AF37] rounded-full blur-[100px] opacity-10 pointer-events-none"></div>
                 
                 <div className="p-8 relative z-10">
@@ -252,6 +255,7 @@ export default function TicketView({ quote, onBack, onUpdateStatus, allQuotes = 
 
         {/* COLUMNA DERECHA: CLIENTE E INTELIGENCIA (4 Cols) */}
         <div className="lg:col-span-4 space-y-6">
+            {/* ... (Resto de componentes laterales igual) ... */}
             
             {/* 1. TARJETA DE IDENTIDAD (CONTACTO) */}
             <div className="relative group">

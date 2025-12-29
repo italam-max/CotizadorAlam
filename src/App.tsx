@@ -159,6 +159,7 @@ export default function ElevatorQuoter() {
     showNotify('Datos de tráfico importados');
   };
 
+  const handleTrackQuote = (quote: QuoteData) => { setWorkingQuote(quote); setView('tracker'); };
   const handleOpenTracker = () => { setWorkingQuote(INITIAL_FORM_STATE); setView('tracker'); };
 
   const handleSelectQuoteSmart = (quote: QuoteData) => {
@@ -305,6 +306,7 @@ export default function ElevatorQuoter() {
                 quote={workingQuote} 
                 onBack={() => setView('dashboard')} 
                 onUpdateStatus={handleUpdateStatus} 
+                onEdit={() => setView('quoter')}  // <--- 3. AQUÍ CONECTAMOS LA NAVEGACIÓN
                 // AQUÍ PASAMOS LOS DATOS PARA PROYECTOS RELACIONADOS
                 allQuotes={quotes}
             />

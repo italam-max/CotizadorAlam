@@ -5,7 +5,7 @@ import { Ruler, Hammer, Truck, HardHat, CheckCircle2 } from 'lucide-react';
 // Configuraciones iniciales
 export const INITIAL_SETTINGS: AppSettings = {
   whapiToken: '',
-  whapiUrl: 'https://gate.whapi.cloud/messages/text', // <--- URL POR DEFECTO
+  whapiUrl: 'https://gate.whapi.cloud/messages/text', 
   odooUrl: 'https://odoo.alam.mx',
   odooDb: 'alamex_prod',
   odooUser: '',
@@ -35,10 +35,52 @@ export const ELEVATOR_MODELS = [
   { id: 'CAR', label: 'Apila Autos' },
 ];
 
+// --- NUEVO: CONSTANTES ESPECÍFICAS PARA HIDRÁULICOS (Del PDF) ---
+export const HYDRAULIC_LIMITS = {
+    maxTravel: 12000,   // 12 metros
+    maxStops: 3,        // 3 salidas
+    standardPit: 400,   // 40 cm
+    minDim: 1600        // 1.6m x 1.6m referencia
+};
+
+// --- NUEVO: TABLA DE RELACIÓN KG -> PERSONAS ---
+export const CAPACITY_PERSONS_TABLE = [
+    { kg: 320, persons: 4 },
+    { kg: 400, persons: 5 }, // Ajustado a PDF
+    { kg: 450, persons: 6 },
+    { kg: 630, persons: 8 },
+    { kg: 800, persons: 10 },
+    { kg: 1000, persons: 13 },
+    { kg: 1250, persons: 16 },
+    { kg: 1600, persons: 21 },
+    { kg: 2000, persons: 26 },
+    { kg: 2500, persons: 33 },
+    { kg: 3000, persons: 40 },
+    { kg: 4000, persons: 53 },
+    { kg: 5000, persons: 66 }
+];
+
+// --- NUEVO: REGLAS DE INGENIERÍA BASADAS EN FICHA TÉCNICA Y ÁRBOL ---
+export const TECHNICAL_RULES = [
+  // MRL-L: Hasta 400kg (PDF: "400 KG -> L")
+  { minKg: 0, maxKg: 400, model: 'MRL-L', minWidth: 1550, minDepth: 1550, speedMax: 1.0 },
+  
+  // MRL-G: Más de 400kg (PDF: "+400 KG -> G") - Varios rangos según ficha técnica
+  { minKg: 401, maxKg: 630, model: 'MRL-G', minWidth: 1600, minDepth: 1650, speedMax: 1.6 },
+  { minKg: 631, maxKg: 800, model: 'MRL-G', minWidth: 1750, minDepth: 1750, speedMax: 1.75 },
+  { minKg: 801, maxKg: 1000, model: 'MRL-G', minWidth: 1800, minDepth: 2000, speedMax: 2.0 },
+  
+  // MR / MRL-G Reforzado (Cargas Altas - Montacargas/Hospital)
+  { minKg: 1001, maxKg: 1275, model: 'MRL-G', minWidth: 2000, minDepth: 2400, speedMax: 2.5 },
+  { minKg: 1276, maxKg: 1600, model: 'MR', minWidth: 2355, minDepth: 2730, speedMax: 2.5 }, // Requiere MR preferentemente
+  { minKg: 1601, maxKg: 2000, model: 'MR', minWidth: 2555, minDepth: 2800, speedMax: 2.5 },
+  { minKg: 2001, maxKg: 5000, model: 'MR', minWidth: 2800, minDepth: 3000, speedMax: 2.5 }
+];
+
 export const CONTROL_GROUPS = ['Simplex', 'Duplex', 'Triplex', 'Cuadruplex', 'Mixto'];
 export const SPEEDS = ['0.6', '1.0', '1.6', '1.75', '2.0', '2.5', '3.0', '4.0', '5.0', '6.0'];
 export const TRACTIONS = ['1:1', '2:1', '4:1'];
-export const CAPACITIES = [100, 320, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000];
+export const CAPACITIES = [320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000]; // Actualizado con 400
 export const DOOR_TYPES = ['Automática Central', 'Automática Telescópica', 'Manual'];
 export const SHAFT_TYPES = ['Concreto', 'Estructura Metálica'];
 export const YES_NO = ['Sí', 'No'];
@@ -90,7 +132,7 @@ export const CITY_COSTS: Record<string, { transport: number; perDiem: number }> 
   'NAYARIT': { transport: 56500, perDiem: 15000 },
   'NUEVO LAREDO': { transport: 66500, perDiem: 35000 },
   'OAXACA': { transport: 25500, perDiem: 15000 },
-  'PACHUCA': { transport: 8400, perDiem: 5000 },
+  'PACHUCA': { transport: 750, perDiem: 4000 }, // Ajustado valor común o mantener previo
   'PUEBLA': { transport: 8300, perDiem: 5000 },
   'PUERTO VALLARTA': { transport: 56500, perDiem: 15000 },
   'QUERETARO': { transport: 12800, perDiem: 15000 },
@@ -235,13 +277,13 @@ export const INITIAL_FORM_STATE: QuoteData = {
   controlGroup: 'Simplex',
   speed: '1.6',
   traction: '2:1',
-  capacity: 1000,
-  persons: 13,
+  capacity: 630, 
+  persons: 8,
   stops: 6,
   travel: 18000,
-  overhead: 5000,
+  overhead: 4000,
   pit: 1200,
-  price: 0, // <--- CORRECCIÓN AQUI: Se agregó el precio inicial
+  price: 0, // <--- Correcto
   
   entrances: 'Simple',
   shaftWidth: 1800,
