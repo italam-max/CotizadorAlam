@@ -1,8 +1,20 @@
 // ARCHIVO: src/features/tools/ProjectPlanner.tsx
 import { useState, useEffect, useMemo } from 'react';
+// CORRECCIÓN: Agregamos CheckCircle2 a las importaciones
 import { Calendar, RefreshCcw, Activity, Clock, Layers, Flag, CheckCircle2 } from 'lucide-react';
-import type { QuoteData } from '../../types';
+import type { QuoteData, ProjectPhase } from '../../types';
 import { STANDARD_PHASES } from '../../data/constants';
+
+// Interfaz extendida para los items calculados del cronograma
+interface ScheduleItem extends ProjectPhase {
+  finalDuration: number;
+  startStr: string;
+  endStr: string;
+  fullEndDate: Date;
+  startWeeks: number;
+  endWeeks: number;
+  gradient: string;
+}
 
 export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteData }) {
   const [config, setConfig] = useState({
@@ -11,7 +23,8 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
     stops: 4,
   });
 
-  const [phases, setPhases] = useState(STANDARD_PHASES);
+  // Tipamos explícitamente el estado
+  const [phases, setPhases] = useState<ProjectPhase[]>(STANDARD_PHASES);
 
   const syncWithQuote = () => {
     setConfig({
@@ -22,7 +35,7 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
   };
 
   useEffect(() => {
-    setPhases(prev => prev.map(p => {
+    setPhases((prev: ProjectPhase[]) => prev.map((p: ProjectPhase) => {
       if (!p.isVariable) return p;
       let newDuration = p.baseDuration;
       if (p.name === 'Fabricación') {
@@ -35,14 +48,14 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
   }, [config.elevators, config.stops]);
 
   const handleDurationChange = (id: string, newVal: number) => {
-    setPhases(prev => prev.map(p => p.id === id ? { ...p, duration: newVal } : p));
+    setPhases((prev: ProjectPhase[]) => prev.map((p: ProjectPhase) => p.id === id ? { ...p, duration: newVal } : p));
   };
 
-  const schedule = useMemo(() => {
+  const schedule = useMemo<ScheduleItem[]>(() => {
     let currentWeeks = 0;
     const start = new Date(config.startDate);
     
-    return phases.map((phase, index) => {
+    return phases.map((phase: ProjectPhase, index: number) => {
       const duration = phase.duration !== undefined ? phase.duration : phase.baseDuration;
       
       const phaseStart = new Date(start);
@@ -51,7 +64,7 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
       currentWeeks += duration;
       
       const phaseEnd = new Date(start);
-      phaseEnd.setDate(start.getDate() + (currentWeeks * 7)); // Ajuste simple: fin es inicio + duración
+      phaseEnd.setDate(start.getDate() + (currentWeeks * 7)); 
 
       return {
         ...phase,
@@ -65,6 +78,9 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
       };
     });
   }, [config.startDate, phases]);
+
+  // Si phases o schedule están vacíos, no renderizamos o mostramos loader
+  if (!schedule || schedule.length === 0) return null;
 
   const totalWeeks = schedule[schedule.length - 1].endWeeks;
   const projectEndDate = schedule[schedule.length - 1].fullEndDate.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -142,7 +158,7 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
             <div className="lg:col-span-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-[#0A2463]/5 p-6 shadow-sm">
                 <h3 className="font-bold text-[#0A2463] mb-6 text-sm uppercase tracking-wider border-b border-[#0A2463]/10 pb-2">Configuración de Tiempos</h3>
                 <div className="space-y-3">
-                    {schedule.map((phase, idx) => (
+                    {schedule.map((phase: ScheduleItem, idx: number) => (
                         <div key={phase.id} className="flex items-center justify-between group">
                             <div className="flex items-center gap-3">
                                 <span className="text-[10px] font-bold text-gray-400 w-4">{idx + 1}.</span>
@@ -182,7 +198,7 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
                       <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{backgroundImage: 'linear-gradient(90deg, #0A2463 1px, transparent 1px)', backgroundSize: '10% 100%'}}></div>
 
                       <div className="space-y-5 relative z-10">
-                        {schedule.map((phase, idx) => (
+                        {schedule.map((phase: ScheduleItem, idx: number) => (
                           <div key={idx} className="group flex flex-col gap-1">
                             <div className="flex justify-between items-end px-1">
                                 <span className="text-[10px] font-bold text-gray-500 group-hover:text-[#0A2463] transition-colors">{phase.name}</span>
@@ -216,7 +232,7 @@ export default function ProjectPlanner({ currentQuote }: { currentQuote: QuoteDa
                         El proyecto dará inicio el <strong className="text-white font-bold">{new Date(config.startDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>. 
                         Se ha estructurado un plan de trabajo de <strong className="text-white font-bold">{totalWeeks.toFixed(1)} semanas</strong> totales, 
                         abarcando desde la Ingeniería hasta la Entrega Final. 
-                        La fase crítica de instalación está programada para durar <strong className="text-white font-bold">{schedule.find(p => p.name === 'Instalación')?.finalDuration} semanas</strong>.
+                        La fase crítica de instalación está programada para durar <strong className="text-white font-bold">{schedule.find((p: ScheduleItem) => p.name === 'Instalación')?.finalDuration} semanas</strong>.
                         Se estima la conclusión y entrega operativa para el <strong className="text-[#D4AF37] font-bold">{projectEndDate}</strong>.
                     </p>
                 </div>

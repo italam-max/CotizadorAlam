@@ -25,28 +25,49 @@ export const PROJECT_STAGES = [
   { id: 'entrega', label: 'Entrega Final', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' }
 ];
 
-// Opciones de Elevadores
+// --- OPCIONES DE ELEVADORES (LIMPIEZA FINAL: SOLO ELEVADORES COMERCIALES) ---
 export const ELEVATOR_MODELS = [
   { id: 'MR', label: 'Con cuarto de máquinas (MR)' },
   { id: 'MRL-L', label: 'Sin cuarto de máquinas (MRL-L)' },
   { id: 'MRL-G', label: 'Sin cuarto de máquinas (MRL-G)' },
   { id: 'HYD', label: 'Hidráulico (HyD)' },
-  { id: 'PLAT', label: 'Plataforma' },
-  { id: 'CAR', label: 'Apila Autos' },
+  { id: 'Home Lift', label: 'Home Lift' },
 ];
 
-// --- NUEVO: CONSTANTES ESPECÍFICAS PARA HIDRÁULICOS (Del PDF) ---
+// --- TABLA DE RELACIÓN VELOCIDAD -> DIMENSIONES (FOSA/HUIDA) ---
+export const SPEED_DIMENSIONS_TABLE = [
+    // 1.0 m/s
+    { speed: 1.0, type: 'MRL-G', pit: 1100, overhead: 3900 },
+    { speed: 1.0, type: 'MRL-L', pit: 1100, overhead: 3600 },
+    { speed: 1.0, type: 'MR',    pit: 1100, overhead: 3500 },
+    { speed: 1.0, type: 'HYD',   pit: 1100, overhead: 3400 },
+    
+    // 1.6 m/s
+    { speed: 1.6, type: 'MRL-G', pit: 1300, overhead: 3800 },
+    { speed: 1.6, type: 'MR',    pit: 1400, overhead: 4000 },
+    
+    // 2.0 m/s
+    { speed: 2.0, type: 'MRL-G', pit: 1500, overhead: 4300 },
+    { speed: 2.0, type: 'MR',    pit: 1650, overhead: 4500 },
+    
+    // 2.5 m/s
+    { speed: 2.5, type: 'MRL-G', pit: 2000, overhead: 4800 },
+    { speed: 2.5, type: 'MR',    pit: 2000, overhead: 4750 },
+];
+
+// --- CONSTANTES ESPECÍFICAS PARA HIDRÁULICOS ---
 export const HYDRAULIC_LIMITS = {
     maxTravel: 12000,   // 12 metros
     maxStops: 3,        // 3 salidas
-    standardPit: 400,   // 40 cm
+    standardPit: 1100,  // Estándar óptimo
+    minPit: 400,        // Mínimo absoluto (con rampa)
     minDim: 1600        // 1.6m x 1.6m referencia
 };
 
-// --- NUEVO: TABLA DE RELACIÓN KG -> PERSONAS ---
+// --- TABLA DE RELACIÓN KG -> PERSONAS ---
 export const CAPACITY_PERSONS_TABLE = [
     { kg: 320, persons: 4 },
-    { kg: 400, persons: 5 }, // Ajustado a PDF
+    { kg: 400, persons: 5 },
     { kg: 450, persons: 6 },
     { kg: 630, persons: 8 },
     { kg: 800, persons: 10 },
@@ -60,19 +81,19 @@ export const CAPACITY_PERSONS_TABLE = [
     { kg: 5000, persons: 66 }
 ];
 
-// --- NUEVO: REGLAS DE INGENIERÍA BASADAS EN FICHA TÉCNICA Y ÁRBOL ---
+// --- REGLAS DE INGENIERÍA ---
 export const TECHNICAL_RULES = [
-  // MRL-L: Hasta 400kg (PDF: "400 KG -> L")
+  // MRL-L: Hasta 400kg
   { minKg: 0, maxKg: 400, model: 'MRL-L', minWidth: 1550, minDepth: 1550, speedMax: 1.0 },
   
-  // MRL-G: Más de 400kg (PDF: "+400 KG -> G") - Varios rangos según ficha técnica
+  // MRL-G: Más de 400kg
   { minKg: 401, maxKg: 630, model: 'MRL-G', minWidth: 1600, minDepth: 1650, speedMax: 1.6 },
   { minKg: 631, maxKg: 800, model: 'MRL-G', minWidth: 1750, minDepth: 1750, speedMax: 1.75 },
   { minKg: 801, maxKg: 1000, model: 'MRL-G', minWidth: 1800, minDepth: 2000, speedMax: 2.0 },
   
-  // MR / MRL-G Reforzado (Cargas Altas - Montacargas/Hospital)
+  // MR / MRL-G Reforzado
   { minKg: 1001, maxKg: 1275, model: 'MRL-G', minWidth: 2000, minDepth: 2400, speedMax: 2.5 },
-  { minKg: 1276, maxKg: 1600, model: 'MR', minWidth: 2355, minDepth: 2730, speedMax: 2.5 }, // Requiere MR preferentemente
+  { minKg: 1276, maxKg: 1600, model: 'MR', minWidth: 2355, minDepth: 2730, speedMax: 2.5 }, 
   { minKg: 1601, maxKg: 2000, model: 'MR', minWidth: 2555, minDepth: 2800, speedMax: 2.5 },
   { minKg: 2001, maxKg: 5000, model: 'MR', minWidth: 2800, minDepth: 3000, speedMax: 2.5 }
 ];
@@ -80,7 +101,7 @@ export const TECHNICAL_RULES = [
 export const CONTROL_GROUPS = ['Simplex', 'Duplex', 'Triplex', 'Cuadruplex', 'Mixto'];
 export const SPEEDS = ['0.6', '1.0', '1.6', '1.75', '2.0', '2.5', '3.0', '4.0', '5.0', '6.0'];
 export const TRACTIONS = ['1:1', '2:1', '4:1'];
-export const CAPACITIES = [320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000]; // Actualizado con 400
+export const CAPACITIES = [320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000];
 export const DOOR_TYPES = ['Automática Central', 'Automática Telescópica', 'Manual'];
 export const SHAFT_TYPES = ['Concreto', 'Estructura Metálica'];
 export const YES_NO = ['Sí', 'No'];
@@ -100,7 +121,6 @@ export const FLOOR_FINISHES = ['Granito', 'PVC', 'Aluminio', 'Metal', '3D Design
 export const NORMS = ['EN 81-1', 'EN 81-2', 'NOM-053', 'ASME A17.1'];
 export const DISPLAYS = ['Display Inteligente', 'Touch', 'LCD Standard', 'Matriz de Puntos'];
 
-// Datos Geográficos y Costos
 export const CITY_COSTS: Record<string, { transport: number; perDiem: number }> = {
   'ACAPULCO': { transport: 22100, perDiem: 15000 },
   'AGUASCALIENTES': { transport: 28900, perDiem: 15000 },
@@ -132,7 +152,7 @@ export const CITY_COSTS: Record<string, { transport: number; perDiem: number }> 
   'NAYARIT': { transport: 56500, perDiem: 15000 },
   'NUEVO LAREDO': { transport: 66500, perDiem: 35000 },
   'OAXACA': { transport: 25500, perDiem: 15000 },
-  'PACHUCA': { transport: 750, perDiem: 4000 }, // Ajustado valor común o mantener previo
+  'PACHUCA': { transport: 750, perDiem: 4000 },
   'PUEBLA': { transport: 8300, perDiem: 5000 },
   'PUERTO VALLARTA': { transport: 56500, perDiem: 15000 },
   'QUERETARO': { transport: 12800, perDiem: 15000 },
@@ -150,57 +170,6 @@ export const CITY_COSTS: Record<string, { transport: number; perDiem: number }> 
   'TUXTLA GUTIERREZ': { transport: 45100, perDiem: 19950 },
   'VERACRUZ': { transport: 18600, perDiem: 15000 },
   'ZACATECAS': { transport: 39300, perDiem: 15000 },
-};
-
-export const INSTALLATION_TRAVEL_DATA: Record<string, { perDiemPersonDay: number; transportCouple: number; toolTransport: number }> = {
-  'ACAPULCO': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
-  'AGUASCALIENTES': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
-  'BAJA CALIFORNIA SUR': { perDiemPersonDay: 850, transportCouple: 22000, toolTransport: 27000 },
-  'CAMPECHE': { perDiemPersonDay: 1100, transportCouple: 12100, toolTransport: 16000 },
-  'CANCUN': { perDiemPersonDay: 1100, transportCouple: 19800, toolTransport: 5500 },
-  'CDMX': { perDiemPersonDay: 0, transportCouple: 0, toolTransport: 0 },
-  'CD. JUAREZ': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
-  'CD. VICTORIA': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
-  'CELAYA': { perDiemPersonDay: 1000, transportCouple: 5500, toolTransport: 8500 },
-  'CHIHUAHUA': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
-  'COLIMA': { perDiemPersonDay: 900, transportCouple: 2500, toolTransport: 10000 },
-  'CUERNAVACA': { perDiemPersonDay: 800, transportCouple: 1800, toolTransport: 4000 },
-  'CULIACAN': { perDiemPersonDay: 1200, transportCouple: 15400, toolTransport: 26000 },
-  'DURANGO': { perDiemPersonDay: 1050, transportCouple: 11000, toolTransport: 26000 },
-  'EDO MEX (zona metropolitana)': { perDiemPersonDay: 0, transportCouple: 0, toolTransport: 0 },
-  'GUADALAJARA': { perDiemPersonDay: 750, transportCouple: 15000, toolTransport: 15000 },
-  'GUANAJUATO': { perDiemPersonDay: 1000, transportCouple: 5500, toolTransport: 8500 },
-  'HERMOSILLO': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
-  'IXTAPA ZIHUATANEJO': { perDiemPersonDay: 900, transportCouple: 6000, toolTransport: 9000 },
-  'LEON': { perDiemPersonDay: 900, transportCouple: 3300, toolTransport: 8500 },
-  'LOS CABOS': { perDiemPersonDay: 1200, transportCouple: 25520, toolTransport: 29000 },
-  'MAZATLAN': { perDiemPersonDay: 1100, transportCouple: 17490, toolTransport: 15000 },
-  'MERIDA': { perDiemPersonDay: 1100, transportCouple: 12100, toolTransport: 16000 },
-  'MEXICALLI': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
-  'MICHOACAN': { perDiemPersonDay: 900, transportCouple: 1650, toolTransport: 8500 },
-  'MONTERREY': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
-  'MORELIA': { perDiemPersonDay: 900, transportCouple: 1650, toolTransport: 8500 },
-  'NAYARIT': { perDiemPersonDay: 1100, transportCouple: 8800, toolTransport: 11000 },
-  'NUEVO LAREDO': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
-  'OAXACA': { perDiemPersonDay: 1000, transportCouple: 6600, toolTransport: 10000 },
-  'PACHUCA': { perDiemPersonDay: 750, transportCouple: 1650, toolTransport: 4000 },
-  'PUEBLA': { perDiemPersonDay: 850, transportCouple: 1540, toolTransport: 3000 },
-  'PUERTO VALLARTA': { perDiemPersonDay: 1100, transportCouple: 11000, toolTransport: 15000 },
-  'QUERETARO': { perDiemPersonDay: 800, transportCouple: 2750, toolTransport: 5500 },
-  'REYNOSA': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
-  'SALTILLO': { perDiemPersonDay: 850, transportCouple: 1100, toolTransport: 15000 },
-  'SAN JOSÉ DEL CABO': { perDiemPersonDay: 1200, transportCouple: 25520, toolTransport: 29000 },
-  'SAN LUIS POTOSI': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
-  'TABASCO': { perDiemPersonDay: 950, transportCouple: 11000, toolTransport: 1000 },
-  'TEQUILA': { perDiemPersonDay: 750, transportCouple: 15000, toolTransport: 15000 },
-  'TEZIUTLAN': { perDiemPersonDay: 850, transportCouple: 220, toolTransport: 6000 },
-  'TIJUANA': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
-  'TOLUCA': { perDiemPersonDay: 800, transportCouple: 1800, toolTransport: 4000 },
-  'TORREON': { perDiemPersonDay: 1050, transportCouple: 11000, toolTransport: 26000 },
-  'TULUM': { perDiemPersonDay: 1000, transportCouple: 11550, toolTransport: 5500 },
-  'TUXTLA GUTIERREZ': { perDiemPersonDay: 950, transportCouple: 11000, toolTransport: 1000 },
-  'VERACRUZ': { perDiemPersonDay: 1000, transportCouple: 6600, toolTransport: 10000 },
-  'ZACATECAS': { perDiemPersonDay: 900, transportCouple: 15000, toolTransport: 18000 },
 };
 
 export const INSTALLATION_BASE_COSTS: Record<number, { small: number, large: number }> = {
@@ -282,8 +251,8 @@ export const INITIAL_FORM_STATE: QuoteData = {
   stops: 6,
   travel: 18000,
   overhead: 4000,
-  pit: 1200,
-  price: 0, // <--- Correcto
+  pit: 1300,
+  price: 0,
   
   entrances: 'Simple',
   shaftWidth: 1800,
