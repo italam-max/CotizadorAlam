@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { 
   Building, Calculator, Box, Layout, Settings, 
   Save, FileText, ArrowRight, ArrowLeft, AlertTriangle, 
-  CheckCircle2, RefreshCcw, Lock, Users, Zap, Ruler, Info, X, ChevronRight
+  CheckCircle2, Lock, Users, Zap, Ruler, Info, X, ChevronRight
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { InputGroup } from '../../components/ui/InputGroup';
@@ -35,6 +35,8 @@ export default function ManualQuoter({
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<QuoteData>(initialData);
   const [isDirty, setIsDirty] = useState(false);
+  
+  // Estado de Validación
   const [validation, setValidation] = useState<{warnings: string[], suggestions: Partial<QuoteData>, fieldsWithError: string[]}>({warnings: [], suggestions: {}, fieldsWithError: []});
   const [dismissedWarnings, setDismissedWarnings] = useState<string[]>([]); 
   const [autoCorrectionMessage, setAutoCorrectionMessage] = useState<string | null>(null);
@@ -42,6 +44,7 @@ export default function ManualQuoter({
   const strictOptions = getStrictOptions(formData);
 
   useEffect(() => {
+      // Auto-corrección SOLO del Modelo si es inválido (regla de negocio estricta)
       const isModelValid = strictOptions.validModels.some(m => m.id === formData.model);
       if (!isModelValid && strictOptions.validModels.length > 0) {
           const newModel = strictOptions.validModels[0].id;
@@ -53,6 +56,8 @@ export default function ManualQuoter({
               setTimeout(() => setAutoCorrectionMessage(null), 4000);
           }
       }
+      
+      // Ejecutar validaciones visuales
       const res = validateConfiguration(formData);
       setValidation(res);
   }, [formData.capacity, formData.model, formData.speed, formData.travel, formData.stops, formData.persons, formData.overhead, formData.pit, formData.shaftWidth, formData.shaftDepth]);
@@ -73,6 +78,7 @@ export default function ManualQuoter({
         newData = { ...newData, model: defaults.model || newData.model, traction: newData.traction || defaults.traction };
     }
     
+    // Aplicar Restricciones Duras (Hard Limits) para evitar valores imposibles
     const futureRestrictions = getStrictOptions(newData);
     if (field === 'pit' && Number(value) < futureRestrictions.minPit) newData.pit = futureRestrictions.minPit;
     if (field === 'overhead' && Number(value) < futureRestrictions.minOverhead) newData.overhead = futureRestrictions.minOverhead;
@@ -91,23 +97,22 @@ export default function ManualQuoter({
     setIsDirty(false);
   };
 
-  const applySuggestions = () => {
-      const newData = { ...formData, ...validation.suggestions };
-      setFormData(newData);
-      onUpdate(newData);
-      setIsDirty(true);
-      setDismissedWarnings([]); 
-  };
-
   const dismissWarning = (warningMsg: string) => setDismissedWarnings(prev => [...prev, warningMsg]);
   const activeWarnings = validation.warnings.filter(w => !dismissedWarnings.includes(w));
 
+  // --- HELPER PARA ESTILOS DE ERROR (ILUMINACIÓN) ---
   const getInputClass = (fieldName: string, baseClass: string = 'form-input') => {
       const hasError = validation.fieldsWithError?.includes(fieldName);
-      return `${baseClass} ${hasError ? 'border-red-400 bg-red-50 text-red-900 focus:border-red-500' : 'border-slate-300 focus:border-[#0A2463]'}`;
+      
+      // Si hay error: Borde Rojo + Fondo Rojo Suave + Glow Rojo + Texto Rojo
+      if (hasError) {
+          return `${baseClass} border-red-500 bg-red-50 text-red-900 focus:border-red-600 focus:ring-4 focus:ring-red-500/20 transition-all shadow-sm`;
+      }
+      
+      // Estilo Normal
+      return `${baseClass} border-slate-300 focus:border-[#0A2463]`;
   };
 
-  // --- COMPONENTES UI INTERNOS PARA LIMPIEZA ---
   const SectionTitle = ({ title, icon: Icon }: { title: string, icon: any }) => (
       <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
           <div className="p-1.5 bg-[#0A2463]/10 rounded-md text-[#0A2463]">
@@ -216,7 +221,7 @@ export default function ManualQuoter({
                         </div>
                     )}
 
-                    {/* --- PASO 2: INGENIERÍA (REDSEÑADO) --- */}
+                    {/* --- PASO 2: INGENIERÍA (CON ALERTAS ROJAS) --- */}
                     {currentStep === 2 && (
                         <div className="space-y-6 animate-fadeIn">
                              {/* TARJETA 1: TRÁFICO Y CARGA */}
@@ -227,6 +232,7 @@ export default function ManualQuoter({
                                         <input type="number" value={formData.stops} onChange={e => updateField('stops', Number(e.target.value))} className={getInputClass('stops', "form-input font-bold text-center text-lg")} />
                                     </InputGroup>
                                     <InputGroup label="Recorrido (mm)">
+                                        {/* AQUI SE PINTARÁ ROJO SI HAY ERROR 'travel' */}
                                         <input type="number" value={formData.travel || 0} onChange={e => updateField('travel', Number(e.target.value))} className={getInputClass('travel', "form-input font-semibold")} />
                                     </InputGroup>
                                     <InputGroup label="Capacidad (kg)">
@@ -251,6 +257,7 @@ export default function ManualQuoter({
                                     <div className="md:col-span-2">
                                         <InputGroup label="Modelo Recomendado" helpText="Restringido por normativa">
                                             <div className="relative">
+                                                {/* AQUI SE PINTARÁ ROJO SI HAY ERROR 'model' */}
                                                 <select value={formData.model} onChange={e => updateField('model', e.target.value)} className={getInputClass('model', "form-select font-bold bg-[#0A2463]/5 text-[#0A2463]")}>
                                                     {strictOptions.validModels.map(model => <option key={model.id} value={model.id}>{model.label}</option>)}
                                                 </select>
@@ -281,9 +288,11 @@ export default function ManualQuoter({
                                 <SectionTitle title="Dimensiones de Cubo" icon={Ruler} />
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
                                     <InputGroup label="Fosa (Pit)" helpText={`Mín: ${strictOptions.minPit}`}>
+                                        {/* AQUI SE PINTARÁ ROJO SI HAY ERROR 'pit' */}
                                         <input type="number" value={formData.pit || 1200} onChange={e => updateField('pit', Number(e.target.value))} className={getInputClass('pit')} min={strictOptions.minPit} />
                                     </InputGroup>
                                     <InputGroup label="Sobrepaso" helpText={`Mín: ${strictOptions.minOverhead}`}>
+                                        {/* AQUI SE PINTARÁ ROJO SI HAY ERROR 'overhead' */}
                                         <input type="number" value={formData.overhead || 3500} onChange={e => updateField('overhead', Number(e.target.value))} className={getInputClass('overhead')} min={strictOptions.minOverhead} />
                                     </InputGroup>
                                     <InputGroup label="Ancho Cubo" helpText={`Mín: ${strictOptions.minShaftWidth}`}>
@@ -452,12 +461,8 @@ export default function ManualQuoter({
                                     <p className="text-xs text-slate-400">Configuración válida</p>
                                 </div>
                             )}
-
-                            {Object.keys(validation.suggestions).length > 0 && (
-                                <button onClick={applySuggestions} className="w-full py-3 bg-[#D4AF37] hover:bg-[#b5952f] text-[#0A2463] rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 mt-4">
-                                    <RefreshCcw size={14}/> Corregir Automáticamente
-                                </button>
-                            )}
+                            
+                            {/* NOTA: Botón de corrección eliminado según solicitud */}
                         </div>
                     </div>
                 </div>

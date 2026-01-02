@@ -25,7 +25,7 @@ export const PROJECT_STAGES = [
   { id: 'entrega', label: 'Entrega Final', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' }
 ];
 
-// --- OPCIONES DE ELEVADORES (LIMPIEZA FINAL: SOLO ELEVADORES COMERCIALES) ---
+// --- OPCIONES DE ELEVADORES (LIMPIAS: SIN PLAT NI CAR) ---
 export const ELEVATOR_MODELS = [
   { id: 'MR', label: 'Con cuarto de máquinas (MR)' },
   { id: 'MRL-L', label: 'Sin cuarto de máquinas (MRL-L)' },
@@ -170,6 +170,59 @@ export const CITY_COSTS: Record<string, { transport: number; perDiem: number }> 
   'TUXTLA GUTIERREZ': { transport: 45100, perDiem: 19950 },
   'VERACRUZ': { transport: 18600, perDiem: 15000 },
   'ZACATECAS': { transport: 39300, perDiem: 15000 },
+};
+
+// --- IMPORTANTE: DATOS DE COSTO DE INSTALACIÓN ---
+// Estas son las constantes que faltaban y generaban el error en OperationalCostCalculator
+export const INSTALLATION_TRAVEL_DATA: Record<string, { perDiemPersonDay: number; transportCouple: number; toolTransport: number }> = {
+  'ACAPULCO': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
+  'AGUASCALIENTES': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
+  'BAJA CALIFORNIA SUR': { perDiemPersonDay: 850, transportCouple: 22000, toolTransport: 27000 },
+  'CAMPECHE': { perDiemPersonDay: 1100, transportCouple: 12100, toolTransport: 16000 },
+  'CANCUN': { perDiemPersonDay: 1100, transportCouple: 19800, toolTransport: 5500 },
+  'CDMX': { perDiemPersonDay: 0, transportCouple: 0, toolTransport: 0 },
+  'CD. JUAREZ': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
+  'CD. VICTORIA': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
+  'CELAYA': { perDiemPersonDay: 1000, transportCouple: 5500, toolTransport: 8500 },
+  'CHIHUAHUA': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
+  'COLIMA': { perDiemPersonDay: 900, transportCouple: 2500, toolTransport: 10000 },
+  'CUERNAVACA': { perDiemPersonDay: 800, transportCouple: 1800, toolTransport: 4000 },
+  'CULIACAN': { perDiemPersonDay: 1200, transportCouple: 15400, toolTransport: 26000 },
+  'DURANGO': { perDiemPersonDay: 1050, transportCouple: 11000, toolTransport: 26000 },
+  'EDO MEX (zona metropolitana)': { perDiemPersonDay: 0, transportCouple: 0, toolTransport: 0 },
+  'GUADALAJARA': { perDiemPersonDay: 750, transportCouple: 15000, toolTransport: 15000 },
+  'GUANAJUATO': { perDiemPersonDay: 1000, transportCouple: 5500, toolTransport: 8500 },
+  'HERMOSILLO': { perDiemPersonDay: 1050, transportCouple: 22000, toolTransport: 26000 },
+  'IXTAPA ZIHUATANEJO': { perDiemPersonDay: 900, transportCouple: 6000, toolTransport: 9000 },
+  'LEON': { perDiemPersonDay: 900, transportCouple: 3300, toolTransport: 8500 },
+  'LOS CABOS': { perDiemPersonDay: 1200, transportCouple: 25520, toolTransport: 29000 },
+  'MAZATLAN': { perDiemPersonDay: 1100, transportCouple: 17490, toolTransport: 15000 },
+  'MERIDA': { perDiemPersonDay: 1100, transportCouple: 12100, toolTransport: 16000 },
+  'MEXICALLI': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
+  'MICHOACAN': { perDiemPersonDay: 900, transportCouple: 1650, toolTransport: 8500 },
+  'MONTERREY': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
+  'MORELIA': { perDiemPersonDay: 900, transportCouple: 1650, toolTransport: 8500 },
+  'NAYARIT': { perDiemPersonDay: 1100, transportCouple: 8800, toolTransport: 11000 },
+  'NUEVO LAREDO': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
+  'OAXACA': { perDiemPersonDay: 1000, transportCouple: 6600, toolTransport: 10000 },
+  'PACHUCA': { perDiemPersonDay: 750, transportCouple: 1650, toolTransport: 4000 },
+  'PUEBLA': { perDiemPersonDay: 850, transportCouple: 1540, toolTransport: 3000 },
+  'PUERTO VALLARTA': { perDiemPersonDay: 1100, transportCouple: 11000, toolTransport: 15000 },
+  'QUERETARO': { perDiemPersonDay: 800, transportCouple: 2750, toolTransport: 5500 },
+  'REYNOSA': { perDiemPersonDay: 950, transportCouple: 7700, toolTransport: 10000 },
+  'SALTILLO': { perDiemPersonDay: 850, transportCouple: 1100, toolTransport: 15000 },
+  'SAN JOSÉ DEL CABO': { perDiemPersonDay: 1200, transportCouple: 25520, toolTransport: 29000 },
+  'SAN LUIS POTOSI': { perDiemPersonDay: 850, transportCouple: 5500, toolTransport: 8500 },
+  'TABASCO': { perDiemPersonDay: 950, transportCouple: 11000, toolTransport: 1000 },
+  'TEQUILA': { perDiemPersonDay: 750, transportCouple: 15000, toolTransport: 15000 },
+  'TEZIUTLAN': { perDiemPersonDay: 850, transportCouple: 220, toolTransport: 6000 },
+  'TIJUANA': { perDiemPersonDay: 1100, transportCouple: 18700, toolTransport: 29000 },
+  'TOLUCA': { perDiemPersonDay: 800, transportCouple: 1800, toolTransport: 4000 },
+  'TORREON': { perDiemPersonDay: 1050, transportCouple: 11000, toolTransport: 26000 },
+  'TULUM': { perDiemPersonDay: 1000, transportCouple: 11550, toolTransport: 5500 },
+  'TUXTLA GUTIERREZ': { perDiemPersonDay: 950, transportCouple: 11000, toolTransport: 1000 },
+  'VERACRUZ': { perDiemPersonDay: 1000, transportCouple: 6600, toolTransport: 10000 },
+  'ZACATECAS': { perDiemPersonDay: 900, transportCouple: 15000, toolTransport: 18000 },
 };
 
 export const INSTALLATION_BASE_COSTS: Record<number, { small: number, large: number }> = {
