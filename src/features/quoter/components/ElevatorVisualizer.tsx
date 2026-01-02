@@ -1,42 +1,57 @@
 // ARCHIVO: src/features/quoter/components/ElevatorVisualizer.tsx
-
 import React from 'react';
-import type { ElevatorType } from '../types';
 
 interface Props {
-  type: ElevatorType;
+  type: string; 
 }
 
 export const ElevatorVisualizer: React.FC<Props> = ({ type }) => {
   
-  // Lógica para construir la ruta de la imagen
-  const getImagePath = (t: ElevatorType) => {
-    const fileName = t.toLowerCase(); // Convierte 'MRL' a 'mrl'
-    // Asegúrate de que las imágenes estén en public/assets/elevators/
-    return `/assets/elevators/${fileName}.png`;
+  // Lógica de mapeo exacta para tus archivos
+  const getImagePath = (modelId: string) => {
+    // Normalizamos a mayúsculas para evitar errores (mr -> MR)
+    const id = modelId ? modelId.toUpperCase() : '';
+
+    // 1. Caso MR (Tu archivo es MR.PNG)
+    if (id === 'MR') return '/assets/elevators/MR.PNG';
+    
+    // 2. Casos MRL (Tu archivo es mrl.PNG)
+    // Esto cubre 'MRL-G', 'MRL-L', 'MRL', etc.
+    if (id.includes('MRL')) return '/assets/elevators/mrl.PNG';
+    
+    // 3. Caso Hidráulico u otros (Usa default por ahora)
+    // Si consigues una imagen para HYD, agrégala aquí:
+    // if (id === 'HYD') return '/assets/elevators/hyd.png';
+    
+    return '/assets/elevators/default.PNG';
   };
 
+  const imageSrc = getImagePath(type);
+
   return (
-    <div className="h-full bg-slate-800 border border-slate-700 rounded-xl p-6 flex flex-col items-center justify-center shadow-lg relative overflow-hidden">
+    <div className="h-full w-full bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center shadow-lg relative overflow-hidden group">
       
-      {/* Efecto de luz de fondo sutil */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/50 pointer-events-none" />
+      {/* Luz de fondo ambiental */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/80 pointer-events-none" />
       
-      <div className="relative z-10 w-full flex justify-center py-4">
+      <div className="relative z-10 w-full h-full flex items-center justify-center">
+        {/* LA CLAVE ESTÁ AQUÍ: key={imageSrc} obliga a React a recrear la imagen al cambiar */}
         <img 
-          src={getImagePath(type)}
-          alt={`Elevador tipo ${type}`}
+          key={imageSrc} 
+          src={imageSrc}
+          alt={`Vista ${type}`}
           onError={(e) => {
-            // Si no encuentra la foto, pone una por defecto
-            (e.currentTarget as HTMLImageElement).src = '/assets/elevators/default.png';
+            e.currentTarget.src = '/assets/elevators/default.PNG';
           }}
-          className="max-h-[300px] object-contain drop-shadow-2xl transition-all duration-500 hover:scale-105"
+          className="max-h-full max-w-full object-contain drop-shadow-2xl transition-all duration-700 hover:scale-105 animate-fadeIn"
         />
       </div>
 
-      <div className="mt-4 px-3 py-1 bg-slate-900/80 rounded-full border border-slate-700 backdrop-blur-sm">
-        <span className="text-slate-400 text-xs font-bold tracking-wider">
-          VISTA: <span className="text-amber-500">{type}</span>
+      {/* Etiqueta flotante */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-slate-900/90 rounded-full border border-slate-600 backdrop-blur-md z-20 shadow-xl flex items-center gap-2">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+        <span className="text-slate-300 text-[10px] font-bold tracking-widest uppercase whitespace-nowrap">
+          MODELO: <span className="text-white">{type || 'N/A'}</span>
         </span>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { X, Zap, MousePointer2, ArrowRight } from 'lucide-react';
 import type { QuoteData } from '../../types';
 
 // IMPORTAMOS LOS DOS COMPONENTES HIJOS
-import ManualQuoter from './ManualQuoter';
+import { ManualQuoter } from './ManualQuoter';
 import SelectionAssistant from './SelectionAssistant';
 
 interface QuoteWizardProps {

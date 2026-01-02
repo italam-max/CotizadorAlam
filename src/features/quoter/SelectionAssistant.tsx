@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { 
   Sparkles, X, AlertTriangle, Box, ArrowLeft, 
   Scale, Activity, RefreshCcw, Ruler, ChevronRight,
-  Layers, DoorOpen, Users // <--- Nuevo icono
+  Layers, DoorOpen, Users, Warehouse // <--- Nuevo icono para Cuarto de Máquinas
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
+import { getSmartDefaults } from '../../services/calculations';
 
 interface SelectionAssistantProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface SelectionAssistantProps {
   projectRef: string;
 }
 
-// 1. TABLA DE CAPACIDADES ESTÁNDAR (Personas -> KG -> Uso)
+// 1. TABLA DE CAPACIDADES ESTÁNDAR
 const CAPACITY_STEPS = [
     { persons: 4, kg: 320, label: 'Residencial Básico' },
     { persons: 6, kg: 450, label: 'Residencial Estándar' },
@@ -31,37 +32,29 @@ const MODEL_SPECS: any = {
         title: "HIDRÁULICO",
         tag: "Bajo Recorrido",
         desc: "Solución de potencia fluida ideal para optimización de espacios verticales reducidos.",
-        features: [
-            "Recorrido eficiente < 15m",
-            "Consumo energético nulo en bajada",
-            "Rescate automático mecánico",
-            "Instalación de bajo impacto"
-        ],
+        features: [ "Recorrido eficiente < 15m", "Consumo energético nulo en bajada" ],
         gradient: "bg-gradient-to-br from-orange-900 to-amber-700"
     },
     'MRL-G': {
         title: "MRL-G SERIES",
         tag: "High Performance",
         desc: "Tracción Gearless con tecnología de bandas planas. La síntesis perfecta entre silencio y potencia.",
-        features: [
-            "STM (Bandas) Ultra Silenciosas",
-            "Machine-Room-Less (Sin Cuarto)",
-            "Eficiencia Energética A+",
-            "Confort de viaje superior"
-        ],
+        features: [ "STM (Bandas) Ultra Silenciosas", "Machine-Room-Less (Sin Cuarto)" ],
         gradient: "bg-gradient-to-br from-[#0A2463] to-blue-900"
     },
     'MRL-L': {
         title: "MRL-LITE",
         tag: "Compact Living",
         desc: "Ingeniería optimizada para estructuras ligeras y espacios residenciales modernos.",
-        features: [
-            "Estructura Autoportante Incluida",
-            "Optimización de Foso (Pit)",
-            "Tracción convencional probada",
-            "Ideal para Home Lift / Residencial"
-        ],
+        features: [ "Estructura Autoportante Incluida", "Optimización de Foso (Pit)" ],
         gradient: "bg-gradient-to-br from-indigo-900 to-purple-900"
+    },
+    'MR': {
+        title: "MR SERIES",
+        tag: "Heavy Duty",
+        desc: "Sistema convencional con cuarto de máquinas para grandes alturas o cargas pesadas.",
+        features: [ "Facilidad de Mantenimiento", "Ideal para > 10 paradas" ],
+        gradient: "bg-gradient-to-br from-slate-800 to-slate-900"
     }
 };
 
@@ -71,30 +64,33 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
   
   // Datos del Wizard
   const [wizData, setWizData] = useState({
-      width: 0,
-      depth: 0,
+      width: 1800,
+      depth: 1800,
       stops: 2,
       openings: 2,
       height: 3000,
-      capacity: 630, // KG (Valor técnico interno)
-      persons: 8,    // Personas (Valor visual externo)
+      capacity: 630, 
+      persons: 8,    
       pitAvailable: true,
       structureProvider: 'client' as 'client' | 'alamex',
+      machineRoom: 'auto' as 'yes' | 'no' | 'auto', // <--- NUEVO CAMPO
   });
 
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Partial<QuoteData> | null>(null);
 
   useEffect(() => {
     if(isOpen) setIsAnimating(true);
   }, [isOpen]);
 
+  // Sincronizar Paradas -> Recorrido
   useEffect(() => {
-    if (wizData.openings < wizData.stops) {
-        setWizData(prev => ({ ...prev, openings: prev.stops }));
-    }
+    setWizData(prev => ({
+        ...prev,
+        height: (prev.stops - 1) * 3000, 
+        openings: Math.max(prev.openings, prev.stops)
+    }));
   }, [wizData.stops]);
 
-  // Helper para manejar el slider de capacidad
   const handleCapacityChange = (stepIndex: number) => {
       const selected = CAPACITY_STEPS[stepIndex];
       setWizData(prev => ({
@@ -104,78 +100,77 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
       }));
   };
 
-  // Encontrar el índice actual para el slider
   const currentCapIndex = CAPACITY_STEPS.findIndex(c => c.kg === wizData.capacity) !== -1 
     ? CAPACITY_STEPS.findIndex(c => c.kg === wizData.capacity) 
-    : 2; // Default a 630kg
+    : 2; 
 
   if (!isOpen) return null;
 
-  // LÓGICA DE CÁLCULO
+  // --- LÓGICA DE CÁLCULO ---
   const calculateResult = () => {
       setIsAnimating(false);
       setTimeout(() => setIsAnimating(true), 50);
 
-      const isHydraulicZone = wizData.height < 12000 || wizData.stops <= 3;
       const hasDoubleEntrance = wizData.openings > wizData.stops;
 
-      let recommendedModel: any = 'MRL-G';
-      let pitDepth = 1200;
-      let overhead = 3600; 
-      let tractionType = 'Bandas Planas (STM)';
-      let shaftTypeFinal = 'Concreto';
-      let constructionReqFinal = 'No';
-
-      if (isHydraulicZone) {
-          recommendedModel = 'HYD';
-          tractionType = 'Impulsión Hidráulica';
-          overhead = 3200;
-          pitDepth = wizData.pitAvailable ? 1200 : 400; 
-          
-          if (wizData.structureProvider === 'alamex') {
-              shaftTypeFinal = 'Estructura Metálica';
-              constructionReqFinal = 'Sí (Suministro Alamex)';
-          }
-      } else {
-          // Lógica MRL
-          if (wizData.capacity < 450) {
-              recommendedModel = 'MRL-L';
-              tractionType = 'Cable de Acero';
-              pitDepth = wizData.pitAvailable ? 1100 : 400; 
-          } else {
-              recommendedModel = 'MRL-G';
-              tractionType = 'Bandas Planas (STM)';
-          }
-          if (wizData.structureProvider === 'alamex') {
-              shaftTypeFinal = 'Estructura Metálica';
-              constructionReqFinal = 'Sí (Suministro Alamex)';
-          }
-      }
-
-      const technicalData: Partial<QuoteData> = {
-          model: recommendedModel,
+      // 1. Datos base
+      const baseCalcData: Partial<QuoteData> = {
           stops: wizData.stops,
-          doorType: hasDoubleEntrance ? 'Automática (Doble Emb.)' : 'Automática Central',
           travel: wizData.height,
+          capacity: wizData.capacity,
           shaftWidth: wizData.width,
           shaftDepth: wizData.depth,
-          capacity: wizData.capacity,
-          persons: wizData.persons, // Guardamos personas también
-          pit: pitDepth,
-          overhead: overhead,
-          shaftType: shaftTypeFinal,
-          constructionReq: constructionReqFinal.includes('Sí'),
-          traction: tractionType,
       };
 
-      setResult(technicalData);
+      // 2. Obtener recomendación del sistema
+      const smartDefaults = getSmartDefaults(baseCalcData);
+      
+      // 3. Aplicar Lógica de Cuarto de Máquinas (Override)
+      if (wizData.machineRoom === 'no') {
+          // Si NO hay cuarto, prohibimos MR. Si smartDefaults sugirió MR, lo bajamos a MRL-G
+          if (smartDefaults.model === 'MR') {
+              smartDefaults.model = 'MRL-G'; 
+              smartDefaults.traction = 'Bandas Planas (STM)';
+          }
+      } else if (wizData.machineRoom === 'yes') {
+          // Si SÍ hay cuarto, forzamos MR (a menos que sea hidráulico pequeño)
+          if (smartDefaults.model !== 'HYD') {
+              smartDefaults.model = 'MR';
+              smartDefaults.traction = 'Cable de Acero';
+          }
+      }
+      // Si es 'auto', nos quedamos con lo que dijo getSmartDefaults
+
+      // 4. Ajustes finos de UI
+      let shaftTypeFinal = 'Concreto';
+      let constructionReqFinal = 'No';
+      if (wizData.structureProvider === 'alamex') {
+          shaftTypeFinal = 'Estructura Metálica';
+          constructionReqFinal = 'Sí (Suministro Alamex)';
+      }
+
+      // 5. Resultado Final
+      const finalData: Partial<QuoteData> = {
+          ...baseCalcData,
+          ...smartDefaults,
+          doorType: hasDoubleEntrance ? 'Automática (Doble Emb.)' : 'Automática Central',
+          shaftType: shaftTypeFinal,
+          constructionReq: constructionReqFinal.includes('Sí'),
+          persons: wizData.persons,
+      };
+
+      setResult(finalData);
       setStep(3);
   };
 
   const handleConfirm = () => {
-      onApply(result);
-      onClose();
+      if (result) {
+          onApply(result);
+          onClose();
+      }
   };
+
+  const totalTravelMeters = result ? ((result.travel || 0) + (result.pit || 0) + (result.overhead || 0)) / 1000 : 0;
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#020617] text-white flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A2463]">
@@ -245,7 +240,7 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                 </div>
             )}
 
-            {/* PASO 2: DATOS TÉCNICOS (PERSONAS / CAPACIDAD) */}
+            {/* PASO 2: DATOS TÉCNICOS */}
             {step === 2 && (
                 <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12">
                     
@@ -318,12 +313,11 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                             </div>
                         </div>
 
-                        {/* SLIDER DE CAPACIDAD (POR PERSONAS) */}
+                        {/* SLIDER DE CAPACIDAD */}
                         <div className="pt-4">
                              <label className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest flex items-center gap-2 mb-6">
                                 <Users size={16}/> Capacidad Requerida
                             </label>
-                            
                             <input 
                                 type="range" 
                                 min="0" 
@@ -332,7 +326,6 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                                 onChange={e => handleCapacityChange(Number(e.target.value))}
                                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#D4AF37] mb-4"
                             />
-                            
                             <div className="flex justify-between items-end border-b border-white/10 pb-4">
                                 <div>
                                     <div className="text-5xl font-thin text-white leading-none">
@@ -351,7 +344,7 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                         </div>
                     </div>
 
-                    {/* DERECHA */}
+                    {/* DERECHA - INFRAESTRUCTURA */}
                     <div className="lg:col-span-4 flex flex-col justify-between space-y-8 border-l border-white/5 pl-8 md:pl-12">
                         
                         <div className="space-y-8">
@@ -376,6 +369,39 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                                         REDUCIDO
                                     </button>
                                 </div>
+                            </div>
+
+                            {/* --- NUEVO: CUARTO DE MÁQUINAS --- */}
+                            <div className="space-y-3">
+                                <p className="text-xs text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <Warehouse size={12}/> ¿Cuarto de Máquinas?
+                                </p>
+                                <div className="grid grid-cols-3 bg-white/5 p-1 rounded-sm gap-1">
+                                    <button 
+                                        onClick={() => setWizData({...wizData, machineRoom: 'yes'})}
+                                        className={`py-2 text-[10px] font-bold transition-all uppercase ${wizData.machineRoom === 'yes' ? 'bg-[#D4AF37] text-[#0A2463]' : 'text-gray-500 hover:text-white'}`}
+                                    >
+                                        SÍ
+                                    </button>
+                                    <button 
+                                        onClick={() => setWizData({...wizData, machineRoom: 'no'})}
+                                        className={`py-2 text-[10px] font-bold transition-all uppercase ${wizData.machineRoom === 'no' ? 'bg-[#D4AF37] text-[#0A2463]' : 'text-gray-500 hover:text-white'}`}
+                                    >
+                                        NO
+                                    </button>
+                                    <button 
+                                        onClick={() => setWizData({...wizData, machineRoom: 'auto'})}
+                                        className={`py-2 text-[10px] font-bold transition-all uppercase ${wizData.machineRoom === 'auto' ? 'bg-[#D4AF37] text-[#0A2463]' : 'text-gray-500 hover:text-white'}`}
+                                        title="Determinar por Ingeniería"
+                                    >
+                                        AUTO
+                                    </button>
+                                </div>
+                                <p className="text-[9px] text-gray-500 italic text-right">
+                                    {wizData.machineRoom === 'auto' ? '* Se calculará según altura y carga' : 
+                                     wizData.machineRoom === 'yes' ? '* Se priorizará modelo MR' : 
+                                     '* Se forzará tecnología MRL'}
+                                </p>
                             </div>
 
                             {/* Toggle Estructura */}
@@ -418,7 +444,7 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                     <div className="w-full grid grid-cols-1 md:grid-cols-12 bg-[#0A2463] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative">
                         
                         {/* Panel Izquierdo: Modelo */}
-                        <div className={`col-span-1 md:col-span-5 ${MODEL_SPECS[result.model].gradient} p-10 relative overflow-hidden flex flex-col justify-between`}>
+                        <div className={`col-span-1 md:col-span-5 ${MODEL_SPECS[result.model || 'MRL-G']?.gradient || 'bg-blue-900'} p-10 relative overflow-hidden flex flex-col justify-between`}>
                             <div className="absolute -right-20 -top-20 w-64 h-64 border border-white/10 rounded-full"></div>
                             <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-black/10 rounded-full blur-3xl"></div>
                             
@@ -427,13 +453,13 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
                                     <div className="w-2 h-2 bg-[#D4AF37] rounded-full animate-pulse"></div>
                                     <span className="text-xs font-bold tracking-[0.2em] uppercase text-white/80">Configuración Óptima</span>
                                 </div>
-                                <h1 className="text-5xl font-black text-white mb-2 tracking-tighter">{MODEL_SPECS[result.model].title}</h1>
-                                <p className="text-xl text-white/80 font-light">{MODEL_SPECS[result.model].tag}</p>
+                                <h1 className="text-5xl font-black text-white mb-2 tracking-tighter">{MODEL_SPECS[result.model || 'MRL-G']?.title || result.model}</h1>
+                                <p className="text-xl text-white/80 font-light">{MODEL_SPECS[result.model || 'MRL-G']?.tag || 'Standard'}</p>
                             </div>
 
                             <div className="relative z-10 mt-12">
                                 <p className="text-white/70 leading-relaxed font-light border-l-2 border-[#D4AF37] pl-4">
-                                    {MODEL_SPECS[result.model].desc}
+                                    {MODEL_SPECS[result.model || 'MRL-G']?.desc || 'Equipo estándar Alamex.'}
                                 </p>
                             </div>
                         </div>
@@ -454,11 +480,19 @@ export default function SelectionAssistant({ isOpen, onClose, onApply, clientNam
 
                             <div className="grid grid-cols-2 gap-x-8 gap-y-6 mb-8">
                                 <ResultRow label="Sistema de Tracción" value={result.traction} />
-                                <ResultRow label="Recorrido / Configuración" value={`${(result.travel/1000).toFixed(1)}m / ${result.stops} P / ${wizData.openings} S`} />
-                                <ResultRow label="Tipo de Puertas" value={result.doorType} highlight={result.doorType.includes('Doble')} />
-                                <ResultRow label="Fosa (Pit)" value={`${result.pit} mm`} highlight={result.pit < 1000} />
-                                <ResultRow label="Huida (Overhead)" value={`${result.overhead} mm`} />
-                                <ResultRow label="Estructura / Instalación" value={result.shaftType} sub={result.constructionReq ? 'Incluida' : 'Por Cliente'}/>
+                                <ResultRow label="Velocidad Recomendada" value={`${result.speed} m/s`} />
+                                <ResultRow label="Recorrido Útil" value={`${((result.travel || 0)/1000).toFixed(1)}m / ${result.stops} P`} />
+                                
+                                {/* RECORRIDO TOTAL */}
+                                <ResultRow 
+                                    label="Recorrido Total" 
+                                    value={`${totalTravelMeters.toFixed(2)} m`} 
+                                    sub="(Fosa + Cubo + Sobrepaso)"
+                                    highlight
+                                />
+
+                                <ResultRow label="Tipo de Puertas" value={result.doorType} highlight={String(result.doorType).includes('Doble')} />
+                                <ResultRow label="Fosa / Sobrepaso" value={`${result.pit} / ${result.overhead} mm`} />
                             </div>
 
                             <div className="flex gap-4 mt-8 pt-6 border-t border-white/10">

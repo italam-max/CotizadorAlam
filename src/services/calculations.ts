@@ -1,128 +1,138 @@
 // ARCHIVO: src/services/calculations.ts
 import type { QuoteData } from '../types';
-import { TECHNICAL_RULES, CAPACITY_PERSONS_TABLE, HYDRAULIC_LIMITS, SPEED_DIMENSIONS_TABLE, ELEVATOR_MODELS } from '../data/constants';
+import { 
+  TECHNICAL_RULES, 
+  CAPACITY_PERSONS_TABLE, 
+  HYDRAULIC_LIMITS, 
+  SPEED_DIMENSIONS_TABLE, 
+  ELEVATOR_MODELS,
+  SPEEDS // Importamos el listado global de velocidades
+} from '../data/constants';
 
-const STANDARD_FLOOR_HEIGHT = 3000; // 3 metros por piso estándar
+const STANDARD_FLOOR_HEIGHT = 3000; 
 
-// --- 1. OBTENER VALORES POR DEFECTO (AUTO-CONFIGURACIÓN) ---
-export const getSmartDefaults = (capacity: number, travel: number, stops: number): Partial<QuoteData> => {
-    const defaults: Partial<QuoteData> = {};
-
-    // A. Cálculo Automático de Recorrido basado en Paradas
-    if (stops > 1) {
-        defaults.travel = (stops - 1) * STANDARD_FLOOR_HEIGHT;
-    }
-
-    // B. Configurar según Capacidad (Kg) -> Define Modelo base y Dimensiones Cubo
-    const rule = TECHNICAL_RULES.find(r => capacity >= r.minKg && capacity <= r.maxKg);
-    const personRule = CAPACITY_PERSONS_TABLE.find(p => p.kg === capacity);
-
-    if (rule) {
-        defaults.model = rule.model;
-        defaults.shaftWidth = rule.minWidth;
-        defaults.shaftDepth = rule.minDepth;
-        defaults.speed = rule.speedMax; 
-    }
-
-    if (personRule) {
-        defaults.persons = personRule.persons;
-    }
-
-    const currentTravel = defaults.travel || travel;
-
-    // C. Ajuste de Modelo por Recorrido y Carga
-    // 1. Prioridad Hidráulico (Bajo recorrido, pocas paradas, carga media)
-    if (currentTravel > 0 && currentTravel <= HYDRAULIC_LIMITS.maxTravel && stops <= HYDRAULIC_LIMITS.maxStops && capacity <= 1250) {
-        defaults.model = 'HYD';
-        defaults.pit = HYDRAULIC_LIMITS.standardPit;
-        defaults.overhead = 3400;
-    } 
-    // 2. Prioridad MR (Cuarto de Máquinas) para Alturas o Cargas > 800kg
-    else if (stops > 8 || capacity > 800) { 
-        defaults.model = 'MR';
-    }
-
-    // D. Ajuste de Tracción y Componentes según el Modelo Resultante
-    const currentModel = defaults.model || 'MRL-G'; 
-    
-    if (currentModel === 'MRL-G') {
-        defaults.traction = 'Bandas Planas (STM)';
-    } else if (currentModel === 'MRL-L') {
-        defaults.traction = 'Cable de Acero';
-    } else if (currentModel === 'HYD') {
-        defaults.traction = 'Impulsión Hidráulica';
-    } else if (currentModel === 'MR') {
-        defaults.traction = 'Cable de Acero'; 
-    }
-
-    // E. Configurar Fosa y Sobrepaso exactos según tabla de velocidades
-    const targetSpeed = Number(defaults.speed) || 1.0;
-    
-    // Buscamos la regla dimensional específica
-    const dimensionRule = SPEED_DIMENSIONS_TABLE.find(d => 
-        d.speed === targetSpeed && 
-        (d.type === currentModel || (currentModel.includes('MRL') && d.type === 'MRL'))
-    );
-
-    if (dimensionRule) {
-        defaults.pit = dimensionRule.pit;
-        defaults.overhead = dimensionRule.overhead;
-    }
-
-    return defaults;
+// --- HELPER INTERNO ---
+const getDimensionsBySpeed = (speed: number, modelId: string) => {
+    const rule = SPEED_DIMENSIONS_TABLE.find(r => r.speed === speed && r.type === modelId) 
+              || SPEED_DIMENSIONS_TABLE.find(r => r.speed === speed && r.type.includes('MRL') && modelId.includes('MRL'));
+    return rule || { pit: 1200, overhead: 3500 }; 
 };
 
-// --- 2. OBTENER OPCIONES ESTRICTAS (CANDADOS DE SEGURIDAD) ---
+// --- 1. OBTENER VALORES POR DEFECTO ---
+export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<QuoteData> => {
+    const updates: Partial<QuoteData> = {};
+    
+    // A. Recálculo de Recorrido
+    if (currentData.stops && (!currentData.travel || currentData.travel === 0)) {
+        updates.travel = (currentData.stops - 1) * STANDARD_FLOOR_HEIGHT;
+    }
+    const activeTravel = updates.travel || currentData.travel || 0;
+    const activeStops = currentData.stops || 2;
+    const activeCapacity = currentData.capacity || 630;
+
+    // B. Selección Inteligente de Modelo
+    if (!currentData.model) {
+        if (activeTravel <= HYDRAULIC_LIMITS.maxTravel && activeStops <= HYDRAULIC_LIMITS.maxStops && activeCapacity <= 1000) {
+            updates.model = 'HYD';
+        } else if (activeStops > 10 || activeCapacity > 2000) {
+            updates.model = 'MR'; 
+        } else {
+            updates.model = activeCapacity <= 450 ? 'MRL-L' : 'MRL-G';
+        }
+    }
+    const activeModel = updates.model || currentData.model || 'MRL-G';
+
+    // C. Sincronización Personas
+    const personRule = CAPACITY_PERSONS_TABLE.find(p => p.kg === activeCapacity);
+    if (personRule) updates.persons = personRule.persons;
+
+    // D. Velocidad Recomendada (Auto-ajuste)
+    // Buscamos la regla técnica para saber el límite de velocidad de este modelo/carga
+    const techRule = TECHNICAL_RULES.find(r => activeCapacity >= r.minKg && activeCapacity <= r.maxKg);
+    let maxSpeedAllowed = 1.0;
+    
+    if (activeModel === 'HYD' || activeModel === 'Home Lift') {
+        maxSpeedAllowed = 0.6; // Hidráulicos típicamente lentos
+    } else if (techRule) {
+        maxSpeedAllowed = techRule.speedMax;
+    }
+
+    // Si la velocidad actual supera el máximo permitido, la bajamos
+    const currentSpeedNum = Number(currentData.speed || updates.speed || 0);
+    if (!currentData.speed || currentSpeedNum > maxSpeedAllowed) {
+        updates.speed = String(maxSpeedAllowed);
+    }
+    const activeSpeed = Number(updates.speed || currentData.speed || 1.0);
+
+    // E. Dimensiones de Cubo
+    if (techRule) {
+        if (!currentData.shaftWidth) updates.shaftWidth = techRule.minWidth;
+        if (!currentData.shaftDepth) updates.shaftDepth = techRule.minDepth;
+    }
+
+    // F. Fosa y Huida
+    const dims = getDimensionsBySpeed(activeSpeed, activeModel);
+    if (activeModel === 'HYD' || activeModel === 'Home Lift') {
+        updates.pit = HYDRAULIC_LIMITS.standardPit; 
+        updates.overhead = 3400; 
+    } else {
+        updates.pit = dims.pit;
+        updates.overhead = dims.overhead;
+    }
+
+    // G. Tracción
+    if (activeModel === 'MRL-G') updates.traction = 'Bandas Planas (STM)';
+    else if (activeModel === 'MRL-L') updates.traction = 'Cable de Acero';
+    else if (activeModel === 'HYD') updates.traction = 'Impulsión Hidráulica';
+    else if (activeModel === 'MR') updates.traction = 'Cable de Acero';
+
+    return updates;
+};
+
+// --- 2. OBTENER OPCIONES ESTRICTAS (Para UI) ---
 export const getStrictOptions = (data: QuoteData) => {
     const estimatedTravel = (data.stops - 1) * STANDARD_FLOOR_HEIGHT;
     const effectiveTravel = data.travel > 0 ? data.travel : estimatedTravel;
 
-    // A. Filtrar Modelos Válidos (El menú desplegable solo mostrará lo posible)
+    // A. Modelos Válidos
     const validModels = ELEVATOR_MODELS.filter(m => {
-        // 1. Regla Hidráulica: Límite 12m o 3 paradas
-        if ((m.id === 'HYD' || m.id === 'Home Lift') && (effectiveTravel > HYDRAULIC_LIMITS.maxTravel || data.stops > HYDRAULIC_LIMITS.maxStops)) {
-            return false;
-        }
-        
-        // 2. Regla MRL-L: Solo hasta 400kg
-        if (m.id === 'MRL-L' && data.capacity > 400) return false;
-
-        // 3. Regla Límite de Paradas para MRL (>8 requiere MR)
-        if (data.stops > 8 && (m.id === 'MRL-G' || m.id === 'MRL-L')) {
-            return false;
-        }
-
-        // 4. Regla Límite de Carga para MRL (>800kg requiere MR)
-        if (data.capacity > 800 && (m.id === 'MRL-G' || m.id === 'MRL-L')) {
-            return false;
-        }
-        
+        if ((m.id === 'HYD' || m.id === 'Home Lift') && (effectiveTravel > HYDRAULIC_LIMITS.maxTravel || data.stops > HYDRAULIC_LIMITS.maxStops)) return false;
+        if (m.id === 'MRL-L' && data.capacity > 450) return false;
+        if (data.stops > 8 && (m.id === 'MRL-G' || m.id === 'MRL-L')) return false;
+        if (data.capacity > 800 && (m.id === 'MRL-G' || m.id === 'MRL-L')) return false;
         return true;
     });
 
-    // B. Obtener Dimensiones Mínimas Permitidas
-    const currentSpeed = parseFloat(String(data.speed));
-    const dimRule = SPEED_DIMENSIONS_TABLE.find(d => 
-        d.speed === currentSpeed && 
-        (d.type === data.model || (data.model.includes('MRL') && d.type.includes('MRL')))
-    );
-    
-    const isHydraulic = data.model === 'HYD' || data.model === 'Home Lift';
-    // Si es hidráulico usa sus mínimos, si es tracción usa la tabla por velocidad
-    const minPit = isHydraulic ? HYDRAULIC_LIMITS.minPit : (dimRule?.pit || 1200);
-    const minOverhead = isHydraulic ? 3400 : (dimRule?.overhead || 3500);
+    // B. Velocidades Válidas (NUEVO)
+    // Filtramos la lista global SPEEDS según la capacidad y modelo
+    const techRule = TECHNICAL_RULES.find(r => data.capacity >= r.minKg && data.capacity <= r.maxKg);
+    let maxSpeed = 1.0;
 
-    // C. Personas Exactas (Candado)
+    if (data.model === 'HYD' || data.model === 'Home Lift') {
+        maxSpeed = 0.6;
+    } else if (techRule) {
+        maxSpeed = techRule.speedMax;
+    }
+
+    // Filtramos solo las velocidades menores o iguales al máximo permitido
+    const validSpeeds = SPEEDS.filter(s => parseFloat(s) <= maxSpeed);
+
+    // C. Límites Numéricos
+    const currentSpeed = parseFloat(String(data.speed));
+    const dimRule = getDimensionsBySpeed(currentSpeed, data.model);
+    const isHydraulic = data.model === 'HYD' || data.model === 'Home Lift';
+    
+    const minPit = isHydraulic ? HYDRAULIC_LIMITS.minPit : (dimRule?.pit || 1200);
+    const minOverhead = isHydraulic ? 3200 : (dimRule?.overhead || 3500);
+    const minShaftWidth = (techRule && !isHydraulic) ? techRule.minWidth : 1200; 
+    const minShaftDepth = (techRule && !isHydraulic) ? techRule.minDepth : 1200;
+    
     const personRule = CAPACITY_PERSONS_TABLE.find(p => p.kg === data.capacity);
     const strictPersons = personRule ? personRule.persons : null;
 
-    // D. Dimensiones Mínimas de Cubo
-    const techRule = TECHNICAL_RULES.find(r => data.capacity >= r.minKg && data.capacity <= r.maxKg);
-    const minShaftWidth = (techRule && !isHydraulic) ? techRule.minWidth : 1200; 
-    const minShaftDepth = (techRule && !isHydraulic) ? techRule.minDepth : 1200;
-
     return { 
         validModels, 
+        validSpeeds, // <--- Retornamos la lista filtrada
         minPit, 
         minOverhead, 
         strictPersons, 
@@ -131,7 +141,6 @@ export const getStrictOptions = (data: QuoteData) => {
     };
 };
 
-// --- 3. VALIDACIÓN INTELIGENTE (RETORNA ERRORES VISUALES) ---
 export const validateConfiguration = (data: QuoteData) => {
     const warnings: string[] = [];
     const suggestions: Partial<QuoteData> = {};
@@ -142,70 +151,33 @@ export const validateConfiguration = (data: QuoteData) => {
         if (field) fieldsWithError.push(field);
     };
 
-    // VALIDACIÓN DIMENSIONAL (Fosa y Huida)
-    const currentSpeed = parseFloat(String(data.speed));
-    const dimensionRule = SPEED_DIMENSIONS_TABLE.find(d => 
-        d.speed === currentSpeed && 
-        (d.type === data.model || (data.model.includes('MRL') && d.type.includes('MRL')))
-    );
-
-    if (dimensionRule) {
-        if (data.pit < dimensionRule.pit) {
-            if (!(data.model === 'HYD' && data.pit >= 400)) {
-                warn(`Fosa insuficiente (${data.pit}mm). Requiere ${dimensionRule.pit}mm.`, 'pit');
-                suggestions.pit = dimensionRule.pit;
-            }
-        }
-        if (data.overhead < dimensionRule.overhead) {
-            warn(`Sobrepaso insuficiente (${data.overhead}mm). Requiere ${dimensionRule.overhead}mm.`, 'overhead');
-            suggestions.overhead = dimensionRule.overhead;
-        }
+    if (data.pit < 300) warn("Fosa (Pit) peligrosamente baja. Mínimo absoluto 300mm.", 'pit');
+    if (data.model === 'MRL-L' && data.capacity > 450) {
+        warn("El modelo MRL-L solo soporta hasta 450kg.", 'model');
+        fieldsWithError.push('capacity');
+    }
+    if ((data.model === 'HYD' || data.model === 'Home Lift') && data.travel > 15000) {
+        warn("Recorrido excesivo para sistema Hidráulico (>15m).", 'travel');
+        fieldsWithError.push('model');
     }
 
-    // VALIDACIÓN DE MODELO OBLIGATORIO (MR vs MRL)
-    if (data.model === 'MRL-G' || data.model === 'MRL-L') {
-        if (data.stops > 8) {
-            warn(`Para ${data.stops} paradas se requiere Cuarto de Máquinas (MR).`, 'model');
-            suggestions.model = 'MR';
-        }
-        if (data.capacity > 800) {
-            warn(`Para ${data.capacity}kg se requiere Cuarto de Máquinas (MR).`, 'model');
-            suggestions.model = 'MR';
-        }
+    const currentSpeed = Number(data.speed);
+    const requiredDims = getDimensionsBySpeed(currentSpeed, data.model);
+    
+    if (data.model !== 'HYD' && data.pit < requiredDims.pit * 0.9) {
+        warn(`Para ${currentSpeed}m/s se recomienda Fosa de ${requiredDims.pit}mm.`, 'pit');
     }
-
-    // LÓGICA HIDRÁULICA
-    if (data.model === 'HYD' || data.model === 'Home Lift') {
-        if (data.travel > HYDRAULIC_LIMITS.maxTravel) {
-            warn(`Recorrido excesivo para Hidráulico (${(data.travel/1000).toFixed(1)}m). Límite 12m.`, 'travel');
-            suggestions.model = 'MRL-L';
-        }
-    } else {
-        // Validación MRL-L (Lite)
-        if (data.capacity <= 400 && data.model === 'MRL-G' && data.stops <= 8) {
-            warn(`Para ${data.capacity}kg se recomienda modelo MRL-L (Lite).`, 'model');
-            suggestions.model = 'MRL-L';
-        } else if (data.capacity > 400 && data.model === 'MRL-L') {
-            warn(`MRL-L no soporta ${data.capacity}kg. Cambia a MRL-G.`, 'model');
-            suggestions.model = 'MRL-G';
-        }
-    }
-
-    // Validación Ancho/Fondo Cubo
-    const techRule = TECHNICAL_RULES.find(r => data.capacity >= r.minKg && data.capacity <= r.maxKg);
-    if (techRule && data.model !== 'HYD') {
-        if (data.shaftWidth < techRule.minWidth) warn(`Ancho de cubo insuficiente para ${data.capacity}kg.`, 'shaftWidth');
-        if (data.shaftDepth < techRule.minDepth) warn(`Fondo de cubo insuficiente para ${data.capacity}kg.`, 'shaftDepth');
+    if (data.model !== 'HYD' && data.overhead < requiredDims.overhead * 0.9) {
+        warn(`Para ${currentSpeed}m/s se recomienda Huida de ${requiredDims.overhead}mm.`, 'overhead');
     }
 
     return { warnings, suggestions, fieldsWithError };
 };
 
-// --- 4. CALCULADORA DE MATERIALES (BOM) ---
 export const calculateMaterials = (data: QuoteData) => {
     const qty = data.quantity || 1;
-    const stops = data.stops || 6;
-    const travel = (data.travel || 18000) / 1000; 
+    const stops = data.stops || 2;
+    const travel = (data.travel || 3000) / 1000; 
     const totalShaftHeight = travel + ((data.overhead||0)/1000) + ((data.pit||0)/1000);
     const isHydraulic = String(data.model).includes('HYD') || String(data.model).includes('Home');
     const isMR = data.model === 'MR';
@@ -219,7 +191,6 @@ export const calculateMaterials = (data: QuoteData) => {
       'Steel Wires': { color: 'bg-slate-200 border-slate-300 text-slate-800', items: [] as any[] },
       'Cube (Cubo)': { color: 'bg-indigo-100 border-indigo-200 text-indigo-900', items: [] as any[] },
       'Landing (Pisos)': { color: 'bg-teal-100 border-teal-200 text-teal-900', items: [] as any[] },
-      'Magnet (Imanes)': { color: 'bg-red-100 border-red-200 text-red-900', items: [] as any[] },
       'Varios': { color: 'bg-yellow-100 border-yellow-200 text-yellow-900', items: [] as any[] },
     };
     
@@ -227,66 +198,32 @@ export const calculateMaterials = (data: QuoteData) => {
         if (q > 0) materials[cat].items.push({ product, desc, qty: Number(q.toFixed(2)), unit });
     };
     
-    // 1. MACHINE ROOM
     add('Machine Room', 'Control', `Control Inteligente Alamex ${isHydraulic ? 'Hidráulico' : (isMR ? 'MR' : 'MRL')}, 220V`, qty, 'PZA');
+    
     if (isHydraulic) {
-        add('Machine Room', 'Central Hidráulica', 'Unidad de Poder Hidráulica', qty, 'PZA');
-        add('Machine Room', 'Pistón', 'Pistón Hidráulico', qty, 'PZA');
-        add('Machine Room', 'Bomba Hidráulica', 'Bomba compatible', qty, 'PZA');
-        add('Machine Room', 'Aceite Hidráulico', 'Tambor de Aceite', qty * 2, 'PZA'); 
+        add('Machine Room', 'Central Hidráulica', 'Unidad de Poder', qty, 'PZA');
+        add('Machine Room', 'Pistón', `Pistón Hidráulico (${travel}m)`, qty, 'PZA');
+        add('Machine Room', 'Aceite', 'Tambor Aceite', qty * 2, 'PZA');
     } else {
-        add('Machine Room', 'Bancada', isMR ? 'Bancada Máquina MR' : 'Kit Chasis MRL-G', qty, 'PZA');
-        add('Machine Room', 'Cable Tablero/máquina', 'Cable Motor Multi Conducto', 7 * qty, 'm.');
-        add('Machine Room', 'Regulador', `Regulador ${isMR ? 'MR' : 'MRL'} ${data.speed} m/s`, qty, 'PZA');
-        add('Machine Room', 'Máquina', `Gearless ${data.capacity}kg`, qty, 'PZA');
-        if (isMR) {
-             add('Machine Room', 'Deflector', 'Polea Deflectora MR', qty, 'PZA');
-        }
+        add('Machine Room', 'Máquina', `Motor Gearless ${data.capacity}kg`, qty, 'PZA');
+        add('Machine Room', 'Regulador', `Limitador ${data.speed} m/s`, qty, 'PZA');
+        if (isMR) add('Machine Room', 'Bancada', 'Bancada Acero', qty, 'PZA');
     }
-    // 2. PIT / FOSA
-    add('Pit (Fosa)', 'Amortiguador', 'Amortiguador ALAM 01', 2 * qty, 'PZA');
-    if (!isHydraulic) add('Pit (Fosa)', 'Bancada Amortiguador', 'Bancada Ajustable', 2 * qty, 'PZA');
-    add('Pit (Fosa)', 'Recolector', 'Recolector De Aceite', isHydraulic ? 1 * qty : 2 * qty, 'PZA');
-    add('Pit (Fosa)', 'Escalera', 'Escalera Fosa', 1 * qty, 'PZA');
-    add('Pit (Fosa)', 'Stop', 'Botón Stop', 1 * qty, 'PZA');
-    // 3. GUIDES / GUÍAS
+
     const railsQty = Math.ceil(totalShaftHeight / 5) * 2; 
-    add('Guides (Guías)', 'Riel Cabina', 'Riel 16 mm', railsQty * qty, 'PZA');
-    if (!isHydraulic) add('Guides (Guías)', 'Riel Contrapeso', 'Riel 5 mm', railsQty * qty, 'PZA');
-    const bracketsQty = Math.ceil(totalShaftHeight / 1.5) * 2 * (isHydraulic ? 1 : 2); 
-    add('Guides (Guías)', 'Grapas Cabina', 'Grapas 16 mm', bracketsQty * qty, 'PZA');
-    if (!isHydraulic) add('Guides (Guías)', 'Grapas Contrapeso', 'Grapas 5 mm', bracketsQty * qty, 'PZA');
-    add('Guides (Guías)', 'Soporte', 'Soporte Riel', (Math.ceil(totalShaftHeight/1.5)) * qty, 'PZA');
-    // 4. CABIN / CABINA
+    add('Guides (Guías)', 'Riel Cabina', 'Riel T89/T90', railsQty * qty, 'Tramo');
+    if (!isHydraulic) add('Guides (Guías)', 'Riel CP', 'Riel T50/T70', railsQty * qty, 'Tramo');
+    
     add('Cabin (Cabina)', 'Cabina', `Cabina ${data.cabinModel}`, qty, 'PZA');
-    add('Cabin (Cabina)', 'Chasis', isHydraulic ? 'Chasis Mochila' : 'Chasis MRL', qty, 'PZA');
-    add('Cabin (Cabina)', 'COP', 'Botonera Cabina', qty, 'PZA');
-    add('Cabin (Cabina)', 'Cable COP', 'Cable viajero', 1 * qty, 'PZA');
-    add('Cabin (Cabina)', 'Operador', `Operador ${data.doorType}`, qty, 'PZA');
-    add('Cabin (Cabina)', 'Cortina', 'Sensor Infrarrojo', qty, 'PZA');
-    add('Cabin (Cabina)', 'Pesaje', 'Sensor Carga', qty, 'PZA');
-    if (!isHydraulic) add('Cabin (Cabina)', 'Paracaídas', 'Progresivo', qty, 'PZA');
-    else add('Cabin (Cabina)', 'Válvula', 'Rupture Valve', qty, 'PZA');
-    // 5. CONTRAPESO
+    add('Cabin (Cabina)', 'Puertas', `Operador ${data.doorType}`, qty, 'PZA');
+    
     if (!isHydraulic) {
-        add('Counterweight', 'Marco Contrapeso', 'Chasis Contrapeso', 1 * qty, 'PZA');
-        add('Counterweight', 'Pesas', 'Bloques Hierro', 30 * qty, 'PZA');
+        add('Steel Wires', 'Tracción', data.traction?.includes('Banda') ? 'Cinta STM' : 'Cable Acero', (totalShaftHeight + 10) * 5 * qty, 'm.');
+        add('Counterweight', 'Bastidor', 'Chasis CP', 1 * qty, 'PZA');
     }
-    // 6. CABLES
-    if (!isHydraulic) {
-        const tractionRopes = (totalShaftHeight + 10) * 5;
-        add('Steel Wires', 'Tracción', `Cable ${data.traction}`, tractionRopes * qty, 'm.');
-        add('Steel Wires', 'Regulador', 'Cable 6mm', (totalShaftHeight * 2 + 5) * qty, 'm.');
-        add('Steel Wires', 'Sujeción', 'Pernos', 12 * qty, 'PZA');
-    }
-    // 7. CUBE
-    add('Cube (Cubo)', 'Viajero', 'Cable Plano', (travel + 15) * qty, 'm.');
-    add('Cube (Cubo)', 'Canaleta', 'Canaleta', totalShaftHeight * qty, 'm.');
-    // 8. LANDING
-    add('Landing (Pisos)', 'Puertas', `Puerta ${data.doorType}`, stops * qty, 'PZA');
-    add('Landing (Pisos)', 'LOP', 'Botonera Piso', stops * qty, 'PZA');
-    // 9. VARIOS
-    add('Varios', 'Taquetes', 'Kit Expansivo', (stops * 8) * qty, 'PZA');
-    add('Varios', 'Aceite', 'Lubricante', 2 * qty, 'L.');
+
+    add('Landing (Pisos)', 'Puertas Piso', `Puerta ${data.doorType}`, stops * qty, 'PZA');
+    add('Cube (Cubo)', 'Viajero', 'Cable Plano', (travel + 10) * qty, 'm.');
+
     return materials;
 };
