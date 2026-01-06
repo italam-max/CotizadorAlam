@@ -38,8 +38,11 @@ export function ManualQuoter({
   const [formData, setFormData] = useState<QuoteData>(initialData);
   const [validation, setValidation] = useState<{warnings: string[], fieldsWithError: string[]}>({warnings: [], fieldsWithError: []});
 
-  // 1. Obtener restricciones en tiempo real (Incluye validSpeeds)
+  // 1. Obtener restricciones en tiempo real
   const strictOptions = getStrictOptions(formData);
+
+  // Determinar si es modelo Sin Cuarto de Máquinas (MRL) para ocultar campos
+  const isMRL = String(formData.model).includes('MRL');
 
   useEffect(() => {
       const res = validateConfiguration(formData);
@@ -59,7 +62,16 @@ export function ManualQuoter({
     if (['capacity', 'stops', 'speed', 'model'].includes(field)) {
         const defaults = getSmartDefaults(newData);
         newData = { ...newData, ...defaults };
-        (newData as any)[field] = value; 
+        
+        // Aseguramos que el valor que el usuario acaba de poner se respete
+        // salvo que getSmartDefaults haya cambiado el modelo forzosamente
+        if (field !== 'speed' && field !== 'model') {
+             (newData as any)[field] = value;
+        }
+        // Si el usuario cambia el modelo manualmente, respetamos su selección (salvo validación posterior)
+        if (field === 'model') {
+             (newData as any)[field] = value;
+        }
         
         if (field === 'stops') {
              newData.travel = (Number(value) - 1) * 3000; 
@@ -78,10 +90,11 @@ export function ManualQuoter({
   };
 
   // CÁLCULO DE RECORRIDO TOTAL
+  // Si es MRL, no sumamos fosa y overhead al total visualizado porque "se quitan" visualmente
   const totalTravelMeters = (
     (formData.travel || 0) + 
-    (formData.pit || 0) + 
-    (formData.overhead || 0)
+    (isMRL ? 0 : (formData.pit || 0)) + 
+    (isMRL ? 0 : (formData.overhead || 0))
   ) / 1000;
 
   return (
@@ -166,7 +179,6 @@ export function ManualQuoter({
                                 </InputGroup>
                                 <InputGroup label="Velocidad (m/s)">
                                     <select className={getInputClass('speed')} value={formData.speed} onChange={e => updateField('speed', e.target.value)}>
-                                        {/* 👇 AQUI ESTÁ EL CAMBIO: Usamos strictOptions.validSpeeds */}
                                         {strictOptions.validSpeeds.map(s => (
                                             <option key={s} value={s}>{s} m/s</option>
                                         ))}
@@ -200,12 +212,18 @@ export function ManualQuoter({
                                 Dimensiones Críticas de Obra
                             </h3>
                             <div className="grid grid-cols-2 gap-6">
-                                <InputGroup label="Fosa (Pit)" helpText={`Mínimo: ${strictOptions.minPit} mm`}>
-                                    <input type="number" className={getInputClass('pit')} value={formData.pit} onChange={e => updateField('pit', Number(e.target.value))} min={strictOptions.minPit}/>
-                                </InputGroup>
-                                <InputGroup label="Sobrepaso (Overhead)" helpText={`Mínimo: ${strictOptions.minOverhead} mm`}>
-                                    <input type="number" className={getInputClass('overhead')} value={formData.overhead} onChange={e => updateField('overhead', Number(e.target.value))} min={strictOptions.minOverhead}/>
-                                </InputGroup>
+                                {/* LÓGICA: Solo mostrar Fosa y Sobrepaso si NO es MRL */}
+                                {!isMRL && (
+                                  <>
+                                    <InputGroup label="Fosa (Pit)" helpText={`Mínimo: ${strictOptions.minPit} mm`}>
+                                        <input type="number" className={getInputClass('pit')} value={formData.pit} onChange={e => updateField('pit', Number(e.target.value))} min={strictOptions.minPit}/>
+                                    </InputGroup>
+                                    <InputGroup label="Sobrepaso (Overhead)" helpText={`Mínimo: ${strictOptions.minOverhead} mm`}>
+                                        <input type="number" className={getInputClass('overhead')} value={formData.overhead} onChange={e => updateField('overhead', Number(e.target.value))} min={strictOptions.minOverhead}/>
+                                    </InputGroup>
+                                  </>
+                                )}
+                                
                                 <InputGroup label="Ancho Cubo (mm)" helpText={`Mín: ${strictOptions.minShaftWidth}`}>
                                     <input type="number" className={getInputClass('shaftWidth')} value={formData.shaftWidth} onChange={e => updateField('shaftWidth', Number(e.target.value))}/>
                                 </InputGroup>

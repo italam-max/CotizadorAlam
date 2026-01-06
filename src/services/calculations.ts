@@ -6,7 +6,7 @@ import {
   HYDRAULIC_LIMITS, 
   SPEED_DIMENSIONS_TABLE, 
   ELEVATOR_MODELS,
-  SPEEDS // Importamos el listado global de velocidades
+  SPEEDS 
 } from '../data/constants';
 
 const STANDARD_FLOOR_HEIGHT = 3000; 
@@ -16,6 +16,14 @@ const getDimensionsBySpeed = (speed: number, modelId: string) => {
     const rule = SPEED_DIMENSIONS_TABLE.find(r => r.speed === speed && r.type === modelId) 
               || SPEED_DIMENSIONS_TABLE.find(r => r.speed === speed && r.type.includes('MRL') && modelId.includes('MRL'));
     return rule || { pit: 1200, overhead: 3500 }; 
+};
+
+// --- HELPER PARA VELOCIDAD MÍNIMA ---
+const getMinSpeedForStops = (stops: number) => {
+    if (stops > 35) return 2.0;
+    if (stops > 20) return 1.5; 
+    if (stops > 12) return 1.0; 
+    return 0.0;
 };
 
 // --- 1. OBTENER VALORES POR DEFECTO ---
@@ -30,8 +38,23 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     const activeStops = currentData.stops || 2;
     const activeCapacity = currentData.capacity || 630;
 
-    // B. Selección Inteligente de Modelo
-    if (!currentData.model) {
+    // --- AUTO-CORRECCIÓN DE MODELO ---
+    let currentModel = currentData.model;
+    
+    // 1. Corrección por Paradas: Si supera 8 y es MRL, lo pasamos a MR
+    if (currentModel && String(currentModel).includes('MRL') && activeStops > 8) {
+        updates.model = 'MR';
+        currentModel = 'MR'; 
+    }
+
+    // 2. Corrección por Capacidad: Si supera 800kg y es MRL, lo pasamos a MR (NUEVO)
+    if (currentModel && String(currentModel).includes('MRL') && activeCapacity > 800) {
+        updates.model = 'MR';
+        currentModel = 'MR';
+    }
+
+    // B. Selección Inteligente de Modelo (Si no hay modelo o fue invalidado)
+    if (!currentModel) {
         if (activeTravel <= HYDRAULIC_LIMITS.maxTravel && activeStops <= HYDRAULIC_LIMITS.maxStops && activeCapacity <= 1000) {
             updates.model = 'HYD';
         } else if (activeStops > 10 || activeCapacity > 2000) {
@@ -47,20 +70,29 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     if (personRule) updates.persons = personRule.persons;
 
     // D. Velocidad Recomendada (Auto-ajuste)
-    // Buscamos la regla técnica para saber el límite de velocidad de este modelo/carga
     const techRule = TECHNICAL_RULES.find(r => activeCapacity >= r.minKg && activeCapacity <= r.maxKg);
     let maxSpeedAllowed = 1.0;
     
     if (activeModel === 'HYD' || activeModel === 'Home Lift') {
-        maxSpeedAllowed = 0.6; // Hidráulicos típicamente lentos
+        maxSpeedAllowed = 0.6; 
     } else if (techRule) {
         maxSpeedAllowed = techRule.speedMax;
     }
 
-    // Si la velocidad actual supera el máximo permitido, la bajamos
-    const currentSpeedNum = Number(currentData.speed || updates.speed || 0);
-    if (!currentData.speed || currentSpeedNum > maxSpeedAllowed) {
-        updates.speed = String(maxSpeedAllowed);
+    const minSpeedRequired = getMinSpeedForStops(activeStops);
+    let currentSpeedVal = parseFloat(String(currentData.speed || updates.speed || 0));
+    
+    if (!currentData.speed || currentSpeedVal < minSpeedRequired || currentSpeedVal > maxSpeedAllowed) {
+        const validCandidates = SPEEDS
+            .map(s => parseFloat(s))
+            .filter(v => v >= minSpeedRequired && v <= maxSpeedAllowed)
+            .sort((a, b) => a - b);
+
+        if (validCandidates.length > 0) {
+            updates.speed = String(validCandidates[0]);
+        } else {
+            updates.speed = String(maxSpeedAllowed);
+        }
     }
     const activeSpeed = Number(updates.speed || currentData.speed || 1.0);
 
@@ -103,8 +135,7 @@ export const getStrictOptions = (data: QuoteData) => {
         return true;
     });
 
-    // B. Velocidades Válidas (NUEVO)
-    // Filtramos la lista global SPEEDS según la capacidad y modelo
+    // B. Velocidades Válidas
     const techRule = TECHNICAL_RULES.find(r => data.capacity >= r.minKg && data.capacity <= r.maxKg);
     let maxSpeed = 1.0;
 
@@ -114,8 +145,15 @@ export const getStrictOptions = (data: QuoteData) => {
         maxSpeed = techRule.speedMax;
     }
 
-    // Filtramos solo las velocidades menores o iguales al máximo permitido
-    const validSpeeds = SPEEDS.filter(s => parseFloat(s) <= maxSpeed);
+    const minSpeed = getMinSpeedForStops(data.stops);
+    let validSpeeds = SPEEDS.filter(s => {
+        const v = parseFloat(s);
+        return v <= maxSpeed && v >= minSpeed;
+    });
+
+    if (validSpeeds.length === 0 && maxSpeed > 0) {
+        validSpeeds = [String(maxSpeed)];
+    }
 
     // C. Límites Numéricos
     const currentSpeed = parseFloat(String(data.speed));
@@ -132,7 +170,7 @@ export const getStrictOptions = (data: QuoteData) => {
 
     return { 
         validModels, 
-        validSpeeds, // <--- Retornamos la lista filtrada
+        validSpeeds, 
         minPit, 
         minOverhead, 
         strictPersons, 
@@ -145,13 +183,23 @@ export const validateConfiguration = (data: QuoteData) => {
     const warnings: string[] = [];
     const suggestions: Partial<QuoteData> = {};
     const fieldsWithError: string[] = []; 
+    
+    const isMRL = String(data.model).includes('MRL');
 
     const warn = (msg: string, field?: string) => {
         warnings.push(`ADVERTENCIA: ${msg}`);
         if (field) fieldsWithError.push(field);
     };
 
-    if (data.pit < 300) warn("Fosa (Pit) peligrosamente baja. Mínimo absoluto 300mm.", 'pit');
+    const minSpeedRequired = getMinSpeedForStops(data.stops);
+    const currentSpeed = Number(data.speed);
+
+    if (currentSpeed < minSpeedRequired) {
+        warn(`Para ${data.stops} paradas se recomienda mín. ${minSpeedRequired} m/s`, 'speed');
+    }
+
+    if (!isMRL && data.pit < 300) warn("Fosa (Pit) peligrosamente baja. Mínimo absoluto 300mm.", 'pit');
+
     if (data.model === 'MRL-L' && data.capacity > 450) {
         warn("El modelo MRL-L solo soporta hasta 450kg.", 'model');
         fieldsWithError.push('capacity');
@@ -161,13 +209,12 @@ export const validateConfiguration = (data: QuoteData) => {
         fieldsWithError.push('model');
     }
 
-    const currentSpeed = Number(data.speed);
     const requiredDims = getDimensionsBySpeed(currentSpeed, data.model);
     
-    if (data.model !== 'HYD' && data.pit < requiredDims.pit * 0.9) {
+    if (!isMRL && data.model !== 'HYD' && data.pit < requiredDims.pit * 0.9) {
         warn(`Para ${currentSpeed}m/s se recomienda Fosa de ${requiredDims.pit}mm.`, 'pit');
     }
-    if (data.model !== 'HYD' && data.overhead < requiredDims.overhead * 0.9) {
+    if (!isMRL && data.model !== 'HYD' && data.overhead < requiredDims.overhead * 0.9) {
         warn(`Para ${currentSpeed}m/s se recomienda Huida de ${requiredDims.overhead}mm.`, 'overhead');
     }
 
