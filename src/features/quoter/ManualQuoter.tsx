@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { 
   Building, Calculator, Layout, Save, FileText, 
-  ArrowRight, ArrowLeft, AlertTriangle, Zap, CheckCircle2 
+  ArrowRight, ArrowLeft, AlertTriangle, Zap, CheckCircle2,
+  Settings, Ruler
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { InputGroup } from '../../components/ui/InputGroup';
@@ -25,9 +26,8 @@ interface ManualQuoterProps {
 }
 
 const STEPS = [
-  { id: 1, label: 'General', icon: Building },
-  { id: 2, label: 'Técnico', icon: Calculator },
-  { id: 3, label: 'Acabados', icon: Layout },
+  { id: 1, label: 'Configuración Global', icon: Calculator }, 
+  { id: 2, label: 'Acabados y Estética', icon: Layout },
 ];
 
 export function ManualQuoter({ 
@@ -38,10 +38,22 @@ export function ManualQuoter({
   const [formData, setFormData] = useState<QuoteData>(initialData);
   const [validation, setValidation] = useState<{warnings: string[], fieldsWithError: string[]}>({warnings: [], fieldsWithError: []});
 
-  // 1. Obtener restricciones en tiempo real
-  const strictOptions = getStrictOptions(formData);
+  // --- SOLUCIÓN AL PROBLEMA DE DUPLICADOS Y NAVEGACIÓN ---
+  // Este efecto vigila cuando "initialData" cambia desde afuera (App.tsx).
+  // Si detecta que guardaste (y recibiste ID) o cambiaste de proyecto, actualiza el formulario local.
+  useEffect(() => {
+    const isDifferentId = initialData.id !== formData.id;
+    const isJustSaved = !formData.id && initialData.id; // Pasó de no tener ID a tenerlo (Guardado exitoso)
+    const isDifferentRef = initialData.projectRef !== formData.projectRef; // Cambio de proyecto por referencia
 
-  // Determinar si es modelo Sin Cuarto de Máquinas (MRL) para ocultar campos
+    if (isDifferentId || isJustSaved || isDifferentRef) {
+        setFormData(initialData);
+        // Si cambiamos de proyecto, reiniciamos al paso 1 para ver lo importante
+        if (isDifferentId || isDifferentRef) setCurrentStep(1);
+    }
+  }, [initialData]); // Se ejecuta cada vez que el padre manda datos nuevos
+
+  const strictOptions = getStrictOptions(formData);
   const isMRL = String(formData.model).includes('MRL');
 
   useEffect(() => {
@@ -52,23 +64,18 @@ export function ManualQuoter({
   const updateField = (field: keyof QuoteData, value: any) => {
     let newData = { ...formData, [field]: value };
 
-    // Regla: Paradas define Recorrido (solo si el usuario lo cambia explícitamente)
     if (field === 'stops') {
         const newStops = Number(value);
         newData.travel = (newStops - 1) * 3000;
     }
 
-    // Auto-configuración inteligente
     if (['capacity', 'stops', 'speed', 'model'].includes(field)) {
         const defaults = getSmartDefaults(newData);
         newData = { ...newData, ...defaults };
         
-        // Aseguramos que el valor que el usuario acaba de poner se respete
-        // salvo que getSmartDefaults haya cambiado el modelo forzosamente
         if (field !== 'speed' && field !== 'model') {
              (newData as any)[field] = value;
         }
-        // Si el usuario cambia el modelo manualmente, respetamos su selección (salvo validación posterior)
         if (field === 'model') {
              (newData as any)[field] = value;
         }
@@ -82,15 +89,21 @@ export function ManualQuoter({
     onUpdate(newData);
   };
 
-  const getInputClass = (fieldName: string) => {
+  const getInputClass = (fieldName: string, isHero = false) => {
       const hasError = validation.fieldsWithError.includes(fieldName);
-      return `form-input transition-all ${hasError 
-          ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-200 focus:border-red-500' 
-          : 'border-slate-300 focus:border-[#0A2463]'}`;
+      // Estilo base vs Estilo Hero (más grande y destacado)
+      const baseClasses = isHero 
+        ? "text-lg font-black py-4 px-5 shadow-lg tracking-wide" 
+        : "text-sm px-4 py-3 shadow-inner";
+
+      return `form-input w-full rounded-xl transition-all duration-300 outline-none appearance-none ${baseClasses}
+      ${hasError 
+          ? 'border border-red-500/50 bg-red-900/10 text-red-200 focus:shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
+          : isHero 
+            ? 'border border-[#D4AF37]/40 bg-[#051338] text-[#D4AF37] focus:border-[#D4AF37] focus:shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:border-[#D4AF37]'
+            : 'border border-white/10 bg-[#020610]/80 text-white placeholder-white/30 focus:border-[#D4AF37] focus:bg-[#051338] focus:text-white focus:shadow-[0_0_15px_rgba(212,175,55,0.15)] hover:border-[#D4AF37]/40'}`;
   };
 
-  // CÁLCULO DE RECORRIDO TOTAL
-  // Si es MRL, no sumamos fosa y overhead al total visualizado porque "se quitan" visualmente
   const totalTravelMeters = (
     (formData.travel || 0) + 
     (isMRL ? 0 : (formData.pit || 0)) + 
@@ -98,184 +111,245 @@ export function ManualQuoter({
   ) / 1000;
 
   return (
-    <div className="flex flex-col h-full bg-[#F1F5F9]">
+    <div className="flex flex-col h-full bg-[#020611] text-white relative overflow-hidden font-sans">
       
+      {/* AMBIENT LIGHTING */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[600px] bg-gradient-to-b from-[#0A2463]/30 to-transparent blur-[120px] opacity-50"></div>
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+              backgroundImage: 'radial-gradient(#D4AF37 1px, transparent 1px)',
+              backgroundSize: '40px 40px'
+          }}></div>
+      </div>
+
       {/* HEADER */}
-      <div className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-20 shadow-sm shrink-0">
-        <div>
-            <h2 className="text-lg font-black text-[#0A2463]">{formData.projectRef || 'Nueva Cotización'}</h2>
-            <p className="text-xs text-slate-500">{formData.clientName || 'Sin Cliente Asignado'}</p>
+      <div className="px-8 py-5 flex justify-between items-center sticky top-0 z-30 bg-[#020611]/90 backdrop-blur-xl border-b border-[#D4AF37]/10 shadow-2xl shrink-0">
+        <div className="relative cursor-default">
+            <h2 className="text-2xl font-black text-white tracking-tight drop-shadow-lg relative z-10">{formData.projectRef || 'Nueva Cotización'}</h2>
+            <div className="flex items-center gap-2 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                <p className="text-xs text-[#D4AF37]/90 font-medium uppercase tracking-widest relative z-10">{formData.clientName || 'Sin Cliente'}</p>
+            </div>
         </div>
         
-        <div className="flex bg-slate-100 p-1 rounded-lg">
+        <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 backdrop-blur-md shadow-inner gap-1">
             {STEPS.map(s => (
                 <button 
                     key={s.id} 
                     onClick={() => setCurrentStep(s.id)}
-                    className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-2 ${currentStep === s.id ? 'bg-white text-[#0A2463] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    className={`px-6 py-2.5 text-xs font-bold rounded-xl transition-all duration-500 flex items-center gap-2 relative overflow-hidden ${currentStep === s.id ? 'text-[#020611]' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                 >
-                    <s.icon size={14} /> {s.label}
+                    {currentStep === s.id && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] shadow-[0_0_20px_rgba(212,175,55,0.4)]"></div>
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                        <s.icon size={16} strokeWidth={2.5} /> {s.label}
+                    </span>
                 </button>
             ))}
         </div>
 
-        <div className="flex gap-2">
-            <button onClick={onViewPreview} className="btn-secondary px-3 py-2 text-xs flex gap-2 items-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700">
+        <div className="flex gap-4">
+            <button onClick={onViewPreview} className="px-4 py-2 text-xs flex gap-2 items-center rounded-xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 hover:border-[#D4AF37]/30 transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                 <FileText size={16}/> <span className="hidden sm:inline">Previa</span>
             </button>
-            <button onClick={() => onSave(formData)} className="btn-primary bg-[#0A2463] text-white px-4 py-2 text-xs flex gap-2 items-center rounded-lg hover:bg-blue-900 shadow-md transition-transform active:scale-95">
-                <Save size={16}/> <span className="hidden sm:inline">Guardar</span>
+            <button onClick={() => onSave(formData)} className="px-6 py-2 text-xs flex gap-2 items-center rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B5942E] text-[#051338] font-black shadow-[0_0_20px_rgba(212,175,55,0.2)] hover:shadow-[0_0_30px_rgba(212,175,55,0.4)] hover:brightness-110 transition-all active:scale-95 border border-[#F3E5AB]/20">
+                <Save size={16}/> <span className="hidden sm:inline">GUARDAR</span>
             </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-hidden flex z-10">
           
           {/* COLUMNA IZQUIERDA: FORMULARIO */}
-          <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
-             <div className="max-w-3xl mx-auto space-y-8 pb-10">
+          <div className="flex-1 overflow-y-auto p-8 lg:p-10 custom-scrollbar">
+             <div className="max-w-4xl mx-auto space-y-8 pb-20">
                 
-                {/* PASO 1 */}
+                {/* -------------------- PASO 1: GLOBAL (DATOS + TÉCNICO) -------------------- */}
                 {currentStep === 1 && (
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 animate-fadeIn">
-                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
-                            <div className="p-1.5 bg-blue-50 rounded text-blue-700"><Building size={18}/></div>
-                            Información del Proyecto
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="md:col-span-2">
-                                <ClientAutocomplete value={formData.clientName} onChange={v => updateField('clientName', v)} existingQuotes={existingQuotes}/>
-                            </div>
-                            <InputGroup label="Referencia Interna">
-                                <input className={getInputClass('projectRef')} value={formData.projectRef} onChange={e => updateField('projectRef', e.target.value)} placeholder="Ej: ALAM-2024-001"/>
-                            </InputGroup>
-                            <InputGroup label="Fecha de Proyecto">
-                                <input type="date" className="form-input" value={formData.projectDate} onChange={e => updateField('projectDate', e.target.value)}/>
-                            </InputGroup>
-                            <InputGroup label="Cantidad de Equipos">
-                                <input type="number" min="1" className="form-input font-bold text-center bg-slate-50" value={formData.quantity} onChange={e => updateField('quantity', Number(e.target.value))}/>
-                            </InputGroup>
-                        </div>
-                    </div>
-                )}
-
-                {/* PASO 2 */}
-                {currentStep === 2 && (
-                    <div className="space-y-6 animate-fadeIn">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-[#0A2463]"></div>
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
-                                <div className="p-1.5 bg-blue-50 rounded text-blue-700"><Calculator size={18}/></div>
-                                Configuración Motriz
+                    <div className="space-y-8 animate-fadeIn">
+                        
+                        {/* A. DATOS DEL PROYECTO */}
+                        <div className="relative bg-[#051338]/40 backdrop-blur-2xl p-6 lg:p-8 rounded-[2rem] border border-white/10 shadow-lg hover:border-white/20 transition-colors">
+                            <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3 border-b border-white/5 pb-4">
+                                <div className="p-2 bg-gradient-to-br from-[#0A2463] to-[#020611] rounded-xl text-[#D4AF37] border border-[#D4AF37]/20 shadow-lg"><Building size={18}/></div>
+                                <span className="opacity-90">Datos del Proyecto</span>
                             </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                <div className="md:col-span-8">
+                                    <ClientAutocomplete value={formData.clientName} onChange={v => updateField('clientName', v)} existingQuotes={existingQuotes}/>
+                                </div>
+                                <div className="md:col-span-4">
+                                    <InputGroup label="Referencia Interna">
+                                        <input className={getInputClass('projectRef')} value={formData.projectRef} onChange={e => updateField('projectRef', e.target.value)} placeholder="Ej: ALAM-2024-001"/>
+                                    </InputGroup>
+                                </div>
+                                <div className="md:col-span-4">
+                                    <InputGroup label="Fecha">
+                                        <input type="date" className={`${getInputClass('projectDate')}`} style={{colorScheme: 'dark'}} value={formData.projectDate} onChange={e => updateField('projectDate', e.target.value)}/>
+                                    </InputGroup>
+                                </div>
+                                <div className="md:col-span-4">
+                                    <InputGroup label="Cantidad">
+                                        <input type="number" min="1" className={`${getInputClass('quantity')} text-center font-black text-[#D4AF37] text-lg`} value={formData.quantity} onChange={e => updateField('quantity', Number(e.target.value))}/>
+                                    </InputGroup>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* B. ESPECIFICACIONES TÉCNICAS */}
+                        <div className="relative bg-[#051338]/60 backdrop-blur-2xl p-8 rounded-[2rem] border border-white/10 shadow-2xl">
                             
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
-                                <InputGroup label="Capacidad (kg)">
-                                    <select className={getInputClass('capacity')} value={formData.capacity} onChange={e => updateField('capacity', Number(e.target.value))}>
-                                        {[320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000].map(c => (
-                                            <option key={c} value={c}>{c} kg ({CAPACITY_PERSONS_TABLE.find(p => p.kg === c)?.persons || '?'} pers)</option>
-                                        ))}
-                                    </select>
-                                </InputGroup>
-                                <InputGroup label="Velocidad (m/s)">
-                                    <select className={getInputClass('speed')} value={formData.speed} onChange={e => updateField('speed', e.target.value)}>
-                                        {strictOptions.validSpeeds.map(s => (
-                                            <option key={s} value={s}>{s} m/s</option>
-                                        ))}
-                                    </select>
-                                </InputGroup>
-                                <InputGroup label="Paradas / Niveles">
-                                    <input type="number" min="2" max="60" className={getInputClass('stops')} value={formData.stops} onChange={e => updateField('stops', Number(e.target.value))}/>
-                                </InputGroup>
+                            <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
+                                <h3 className="text-lg font-bold text-white flex items-center gap-3">
+                                    <div className="p-2 bg-gradient-to-br from-[#0A2463] to-[#020611] rounded-xl text-amber-500 border border-amber-500/20 shadow-lg"><Settings size={18}/></div>
+                                    <span className="opacity-90">Configuración Motriz</span>
+                                </h3>
                             </div>
-
-                            <div className="p-5 bg-slate-50 rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <InputGroup label="Modelo Recomendado" helpText="Filtrado por normativa vigente">
-                                    <select className="form-select font-bold text-[#0A2463] bg-white border-blue-200" value={formData.model} onChange={e => updateField('model', e.target.value)}>
-                                        {strictOptions.validModels.map(m => (
-                                            <option key={m.id} value={m.id}>{m.label}</option>
-                                        ))}
-                                    </select>
-                                </InputGroup>
-                                <InputGroup label="Recorrido (mm)" helpText="Calculado: (Paradas - 1) x 3000">
+                            
+                            {/* ZONA 1: MODELO HERO */}
+                            <div className="mb-8">
+                                <label className="block text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 ml-1">Modelo de Equipo</label>
+                                <div className="relative group">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB] rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                                     <div className="relative">
-                                        <input type="number" className={getInputClass('travel')} value={formData.travel} onChange={e => updateField('travel', Number(e.target.value))}/>
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">mm</span>
+                                        <select 
+                                            className={getInputClass('model', true)} 
+                                            style={{colorScheme: 'dark'}} 
+                                            value={formData.model} 
+                                            onChange={e => updateField('model', e.target.value)}
+                                        >
+                                            {strictOptions.validModels.map(m => (
+                                                <option key={m.id} value={m.id} className="bg-[#020611] text-white py-2">{m.label}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <Zap size={20} className="text-[#D4AF37] opacity-80"/>
+                                        </div>
                                     </div>
-                                </InputGroup>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
-                                <div className="p-1.5 bg-amber-50 rounded text-amber-600"><Zap size={18}/></div>
-                                Dimensiones Críticas de Obra
-                            </h3>
-                            <div className="grid grid-cols-2 gap-6">
-                                {/* LÓGICA: Solo mostrar Fosa y Sobrepaso si NO es MRL */}
-                                {!isMRL && (
-                                  <>
-                                    <InputGroup label="Fosa (Pit)" helpText={`Mínimo: ${strictOptions.minPit} mm`}>
-                                        <input type="number" className={getInputClass('pit')} value={formData.pit} onChange={e => updateField('pit', Number(e.target.value))} min={strictOptions.minPit}/>
+                            {/* ZONA 2: CONDICIONANTES PRINCIPALES */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 transition-all group">
+                                    <InputGroup label="Capacidad de Carga">
+                                        <div className="relative">
+                                            <select className={`${getInputClass('capacity', true)} !py-3 !text-base`} style={{colorScheme: 'dark'}} value={formData.capacity} onChange={e => updateField('capacity', Number(e.target.value))}>
+                                                {[320, 400, 450, 630, 800, 1000, 1250, 1600, 2000, 2500, 3000, 4000, 5000].map(c => (
+                                                    <option key={c} value={c} className="bg-[#020611] text-white py-1">
+                                                        {c} kg ({CAPACITY_PERSONS_TABLE.find(p => p.kg === c)?.persons || '?'} pers)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     </InputGroup>
-                                    <InputGroup label="Sobrepaso (Overhead)" helpText={`Mínimo: ${strictOptions.minOverhead} mm`}>
-                                        <input type="number" className={getInputClass('overhead')} value={formData.overhead} onChange={e => updateField('overhead', Number(e.target.value))} min={strictOptions.minOverhead}/>
+                                </div>
+
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 transition-all group">
+                                    <InputGroup label="Velocidad Nominal">
+                                        <select className={`${getInputClass('speed', true)} !py-3 !text-base`} style={{colorScheme: 'dark'}} value={formData.speed} onChange={e => updateField('speed', e.target.value)}>
+                                            {strictOptions.validSpeeds.map(s => (
+                                                <option key={s} value={s} className="bg-[#020611] text-white py-1">{s} m/s</option>
+                                            ))}
+                                        </select>
                                     </InputGroup>
-                                  </>
-                                )}
-                                
-                                <InputGroup label="Ancho Cubo (mm)" helpText={`Mín: ${strictOptions.minShaftWidth}`}>
-                                    <input type="number" className={getInputClass('shaftWidth')} value={formData.shaftWidth} onChange={e => updateField('shaftWidth', Number(e.target.value))}/>
-                                </InputGroup>
-                                <InputGroup label="Fondo Cubo (mm)" helpText={`Mín: ${strictOptions.minShaftDepth}`}>
-                                    <input type="number" className={getInputClass('shaftDepth')} value={formData.shaftDepth} onChange={e => updateField('shaftDepth', Number(e.target.value))}/>
-                                </InputGroup>
+                                </div>
+
+                                <div className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 transition-all group">
+                                    <InputGroup label="Niveles / Paradas">
+                                        <input type="number" min="2" max="60" className={`${getInputClass('stops', true)} !py-3 !text-base text-center`} value={formData.stops} onChange={e => updateField('stops', Number(e.target.value))}/>
+                                    </InputGroup>
+                                </div>
+                            </div>
+
+                            {/* ZONA 3: DIMENSIONES CRÍTICAS */}
+                            <div className="relative">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <Ruler size={14} className="text-[#D4AF37]"/> Dimensiones de Obra
+                                </h4>
+                                <div className="p-6 bg-[#020611]/50 rounded-2xl border border-white/5 grid grid-cols-2 md:grid-cols-4 gap-6">
+                                    <div className="col-span-2 md:col-span-1">
+                                        <InputGroup label="Recorrido" helpText="(Paradas-1)x3000">
+                                            <div className="relative">
+                                                <input type="number" className={getInputClass('travel')} value={formData.travel} onChange={e => updateField('travel', Number(e.target.value))}/>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-[#D4AF37] font-bold">MM</span>
+                                            </div>
+                                        </InputGroup>
+                                    </div>
+                                    
+                                    {!isMRL && (
+                                        <>
+                                            <div className="col-span-1">
+                                                <InputGroup label="Fosa (Pit)" helpText={`Mín: ${strictOptions.minPit}`}>
+                                                    <input type="number" className={getInputClass('pit')} value={formData.pit} onChange={e => updateField('pit', Number(e.target.value))}/>
+                                                </InputGroup>
+                                            </div>
+                                            <div className="col-span-1">
+                                                <InputGroup label="Sobrepaso (OH)" helpText={`Mín: ${strictOptions.minOverhead}`}>
+                                                    <input type="number" className={getInputClass('overhead')} value={formData.overhead} onChange={e => updateField('overhead', Number(e.target.value))}/>
+                                                </InputGroup>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <div className="col-span-1">
+                                        <InputGroup label="Ancho Cubo" helpText={`Mín: ${strictOptions.minShaftWidth}`}>
+                                            <input type="number" className={getInputClass('shaftWidth')} value={formData.shaftWidth} onChange={e => updateField('shaftWidth', Number(e.target.value))}/>
+                                        </InputGroup>
+                                    </div>
+                                    <div className="col-span-1">
+                                        <InputGroup label="Fondo Cubo" helpText={`Mín: ${strictOptions.minShaftDepth}`}>
+                                            <input type="number" className={getInputClass('shaftDepth')} value={formData.shaftDepth} onChange={e => updateField('shaftDepth', Number(e.target.value))}/>
+                                        </InputGroup>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* PASO 3 */}
-                {currentStep === 3 && (
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 animate-fadeIn">
-                        <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 border-b pb-2">
-                            <div className="p-1.5 bg-purple-50 rounded text-purple-700"><Layout size={18}/></div>
-                            Estética y Accesos
+                {/* -------------------- PASO 2: ACABADOS -------------------- */}
+                {currentStep === 2 && (
+                    <div className="relative bg-[#051338]/40 backdrop-blur-2xl p-8 lg:p-10 rounded-[2rem] border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-fadeIn">
+                        <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-4 border-b border-white/5 pb-6">
+                            <div className="p-3 bg-gradient-to-br from-[#0A2463] to-[#020611] rounded-2xl text-purple-400 border border-purple-400/20 shadow-lg"><Layout size={24}/></div>
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Estética y Accesos</span>
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <InputGroup label="Tipo de Puertas">
-                                <select className="form-select" value={formData.doorType} onChange={e => updateField('doorType', e.target.value)}>
-                                    <option value="Automática Central">Automática Central</option>
-                                    <option value="Telescópica">Telescópica Lateral</option>
-                                    <option value="Manual">Manual Batiente</option>
+                                <select className={getInputClass('doorType')} style={{colorScheme: 'dark'}} value={formData.doorType} onChange={e => updateField('doorType', e.target.value)}>
+                                    <option className="bg-[#020611] text-white" value="Automática Central">Automática Central</option>
+                                    <option className="bg-[#020611] text-white" value="Telescópica">Telescópica Lateral</option>
+                                    <option className="bg-[#020611] text-white" value="Manual">Manual Batiente</option>
                                 </select>
                             </InputGroup>
                             <div className="grid grid-cols-2 gap-4">
-                                <InputGroup label="Ancho Paso (mm)">
-                                    <select className="form-select" value={formData.doorWidth} onChange={e => updateField('doorWidth', Number(e.target.value))}>
-                                        {[700, 800, 900, 1000, 1100, 1200].map(w => <option key={w} value={w}>{w}</option>)}
+                                <InputGroup label="Ancho Paso">
+                                    <select className={getInputClass('doorWidth')} style={{colorScheme: 'dark'}} value={formData.doorWidth} onChange={e => updateField('doorWidth', Number(e.target.value))}>
+                                        {[700, 800, 900, 1000, 1100, 1200].map(w => <option key={w} value={w} className="bg-[#020611] text-white">{w}</option>)}
                                     </select>
                                 </InputGroup>
-                                <InputGroup label="Alto Paso (mm)">
-                                    <select className="form-select" value={formData.doorHeight} onChange={e => updateField('doorHeight', Number(e.target.value))}>
-                                        {[2000, 2100, 2200, 2300, 2400].map(h => <option key={h} value={h}>{h}</option>)}
+                                <InputGroup label="Alto Paso">
+                                    <select className={getInputClass('doorHeight')} style={{colorScheme: 'dark'}} value={formData.doorHeight} onChange={e => updateField('doorHeight', Number(e.target.value))}>
+                                        {[2000, 2100, 2200, 2300, 2400].map(h => <option key={h} value={h} className="bg-[#020611] text-white">{h}</option>)}
                                     </select>
                                 </InputGroup>
                             </div>
                             <InputGroup label="Acabado Cabina">
-                                <input type="text" className="form-input" value={formData.cabinFinish} onChange={e => updateField('cabinFinish', e.target.value)} placeholder="Ej: Inox Satinado 304"/>
+                                <input type="text" className={getInputClass('cabinFinish')} value={formData.cabinFinish} onChange={e => updateField('cabinFinish', e.target.value)} placeholder="Ej: Inox Satinado 304"/>
                             </InputGroup>
                             <InputGroup label="Piso de Cabina">
-                                <input type="text" className="form-input" value={formData.cabinFloor} onChange={e => updateField('cabinFloor', e.target.value)} placeholder="Ej: Granito Negro"/>
+                                <input type="text" className={getInputClass('cabinFloor')} value={formData.cabinFloor} onChange={e => updateField('cabinFloor', e.target.value)} placeholder="Ej: Granito Negro"/>
                             </InputGroup>
                             <InputGroup label="Modelo Botoneras">
-                                <input type="text" className="form-input" value={formData.copModel} onChange={e => updateField('copModel', e.target.value)} placeholder="Ej: Touch Glass"/>
+                                <input type="text" className={getInputClass('copModel')} value={formData.copModel} onChange={e => updateField('copModel', e.target.value)} placeholder="Ej: Touch Glass"/>
                             </InputGroup>
                             <InputGroup label="Normativa">
-                                <select className="form-select font-medium" value={formData.norm} onChange={e => updateField('norm', e.target.value)}>
-                                    <option value="EN 81-20">EN 81-20 (Europea Actual)</option>
-                                    <option value="EN 81-1">EN 81-1 (Estándar)</option>
-                                    <option value="ASME">ASME A17.1 (Americana)</option>
+                                <select className={getInputClass('norm')} style={{colorScheme: 'dark'}} value={formData.norm} onChange={e => updateField('norm', e.target.value)}>
+                                    <option className="bg-[#020611] text-white" value="EN 81-20">EN 81-20 (Europea Actual)</option>
+                                    <option className="bg-[#020611] text-white" value="EN 81-1">EN 81-1 (Estándar)</option>
+                                    <option className="bg-[#020611] text-white" value="ASME">ASME A17.1 (Americana)</option>
                                 </select>
                             </InputGroup>
                         </div>
@@ -286,84 +360,86 @@ export function ManualQuoter({
           </div>
 
           {/* COLUMNA DERECHA: MONITOR TÉCNICO */}
-          <div className="w-[400px] border-l border-slate-200 hidden lg:block sticky top-16 h-[calc(100vh-64px)] overflow-hidden bg-slate-50 transition-all duration-300">
-              <div className="h-full flex flex-col p-4 gap-4">
+          <div className="w-[440px] border-l border-white/5 hidden lg:block sticky top-24 h-[calc(100vh-96px)] overflow-hidden bg-[#020611]/40 backdrop-blur-md transition-all duration-300">
+              <div className="h-full flex flex-col p-6 gap-6">
                   
-                  <div className="bg-[#0A2463] text-white rounded-2xl shadow-xl overflow-hidden border border-slate-700 flex flex-col shrink-0">
-                      
-                      <div className="h-56 relative bg-slate-800 border-b border-white/10 group">
-                          <div className="absolute top-3 left-3 z-10 bg-black/40 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur-sm uppercase tracking-wide border border-white/10 shadow-sm">
-                              Vista: {formData.model}
+                  {/* VISUALIZADOR */}
+                  <div className="relative rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.6)] overflow-hidden border border-white/10 group shrink-0">
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#0A2463] to-[#020611]"></div>
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-[#D4AF37] rounded-full blur-[90px] opacity-10 pointer-events-none group-hover:opacity-20 transition duration-700"></div>
+
+                      <div className="h-60 relative z-10">
+                          <div className="absolute top-5 left-5 z-20 bg-[#020611]/80 backdrop-blur-md text-[#D4AF37] text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-[#D4AF37]/30 shadow-lg">
+                              {formData.model} SERIES
                           </div>
-                          <ElevatorVisualizer type={String(formData.model)} />
-                          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#0A2463] via-transparent to-transparent opacity-90"></div>
+                          
+                          <div className="h-full w-full flex items-center justify-center opacity-90 scale-90 transition duration-500 group-hover:scale-95">
+                             <ElevatorVisualizer type={String(formData.model)} />
+                          </div>
+                          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-[#020611] via-transparent to-transparent opacity-80"></div>
                       </div>
 
-                      <div className="px-5 py-3 border-b border-white/10 flex justify-between items-center bg-[#0d2d7a]">
-                          <h3 className="text-xs font-black uppercase tracking-widest text-[#D4AF37] flex items-center gap-2">
-                              <Zap size={14}/> Monitor Técnico
+                      <div className="px-6 py-4 border-t border-white/5 bg-[#020611]/50 backdrop-blur-md flex justify-between items-center relative z-10">
+                          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] flex items-center gap-2">
+                              <Zap size={14}/> Live Monitor
                           </h3>
-                          <div className={`w-2 h-2 rounded-full ${validation.warnings.length > 0 ? 'bg-red-500 animate-pulse' : 'bg-green-400 shadow-[0_0_8px_#4ade80]'}`}></div>
-                      </div>
-
-                      <div className="p-5 space-y-5">
-                          <div className="grid grid-cols-2 gap-3">
-                              <div className="p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-[#D4AF37]/30 transition-colors group">
-                                  <p className="text-[9px] text-slate-400 uppercase mb-1 group-hover:text-[#D4AF37]">Modelo</p>
-                                  <p className="font-bold text-base">{formData.model}</p>
-                              </div>
-                              <div className="p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-[#D4AF37]/30 transition-colors group">
-                                  <p className="text-[9px] text-slate-400 uppercase mb-1 group-hover:text-[#D4AF37]">Velocidad</p>
-                                  <p className="font-bold text-base">{formData.speed} m/s</p>
-                              </div>
-                              <div className="p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-[#D4AF37]/30 transition-colors group">
-                                  <p className="text-[9px] text-slate-400 uppercase mb-1 group-hover:text-[#D4AF37]">Carga</p>
-                                  <p className="font-bold text-base text-[#D4AF37]">{formData.capacity} kg</p>
-                              </div>
-                              <div className="p-2.5 bg-white/5 rounded-lg border border-white/5 hover:border-[#D4AF37]/30 transition-colors group">
-                                  <p className="text-[9px] text-slate-400 uppercase mb-1 group-hover:text-[#D4AF37]">Recorrido Útil</p>
-                                  <p className="font-bold text-base">{(formData.travel/1000).toFixed(1)} m</p>
-                              </div>
-                              
-                              <div className="col-span-2 p-3 bg-gradient-to-r from-white/10 to-transparent rounded-lg border border-white/10 hover:border-[#D4AF37]/50 transition-all group mt-1">
-                                  <div className="flex justify-between items-center">
-                                      <p className="text-[10px] text-slate-300 uppercase font-bold group-hover:text-[#D4AF37]">Recorrido Total</p>
-                                      <p className="font-black text-lg text-white tracking-wide">{totalTravelMeters.toFixed(2)} m</p>
-                                  </div>
-                              </div>
-
-                          </div>
+                          <div className={`w-2 h-2 rounded-full shadow-[0_0_10px_currentColor] ${validation.warnings.length > 0 ? 'bg-red-500 text-red-500 animate-pulse' : 'bg-emerald-400 text-emerald-400'}`}></div>
                       </div>
                   </div>
 
-                  <div className="flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-4 overflow-y-auto">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Análisis de Ingeniería</p>
+                  {/* INFO GRID */}
+                  <div className="grid grid-cols-2 gap-3 shrink-0">
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5 transition-all group">
+                            <p className="text-[9px] text-white/40 uppercase font-bold mb-1 group-hover:text-[#D4AF37]">Velocidad</p>
+                            <p className="font-bold text-lg text-white">{formData.speed} <span className="text-xs text-white/50">m/s</span></p>
+                        </div>
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/5 transition-all group">
+                            <p className="text-[9px] text-white/40 uppercase font-bold mb-1 group-hover:text-[#D4AF37]">Carga</p>
+                            <p className="font-bold text-lg text-[#D4AF37]">{formData.capacity} <span className="text-xs text-[#D4AF37]/50">kg</span></p>
+                        </div>
+                        <div className="col-span-2 p-5 bg-gradient-to-r from-white/5 to-transparent rounded-2xl border border-white/5 hover:border-[#D4AF37]/30 transition-all flex justify-between items-center group">
+                            <div>
+                                <p className="text-[10px] text-white/40 uppercase font-bold mb-0.5 group-hover:text-[#D4AF37]">Recorrido Total</p>
+                                <p className="text-xs text-white/30">Incluye Fosa + Sobrepaso</p>
+                            </div>
+                            <p className="font-black text-2xl text-white tracking-tight">{totalTravelMeters.toFixed(2)} <span className="text-sm font-medium text-white/50">m</span></p>
+                        </div>
+                  </div>
+
+                  {/* ANÁLISIS DE INGENIERÍA */}
+                  <div className="flex-1 bg-[#020611]/40 rounded-[1.5rem] border border-white/5 p-6 overflow-y-auto relative">
+                      <div className="absolute top-0 left-0 w-full h-10 bg-gradient-to-b from-[#020611] to-transparent pointer-events-none z-10"></div>
+                      
+                      <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-6 text-center border-b border-white/5 pb-2">Status de Ingeniería</p>
                       
                       {validation.warnings.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-4">
                               {validation.warnings.map((w, idx) => (
-                                  <div key={idx} className="bg-red-50 border border-red-100 p-2.5 rounded-lg flex items-start gap-2.5">
-                                      <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5"/>
-                                      <p className="text-[11px] text-red-800 font-medium leading-relaxed">{w.replace('ADVERTENCIA: ', '')}</p>
+                                  <div key={idx} className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-start gap-3 shadow-[0_0_10px_rgba(239,68,68,0.05)]">
+                                      <AlertTriangle size={16} className="text-red-400 shrink-0 mt-0.5"/>
+                                      <p className="text-xs text-red-200 font-medium leading-relaxed opacity-90">{w.replace('ADVERTENCIA: ', '')}</p>
                                   </div>
                               ))}
                           </div>
                       ) : (
-                          <div className="h-full flex flex-col items-center justify-center text-emerald-500/80 gap-2 opacity-80">
-                              <CheckCircle2 size={28}/>
-                              <p className="text-xs font-medium">Configuración válida</p>
+                          <div className="h-full flex flex-col items-center justify-center text-emerald-500/40 gap-4 opacity-80">
+                              <CheckCircle2 size={40} className="drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]"/>
+                              <p className="text-xs font-medium tracking-wide uppercase">Configuración Óptima</p>
                           </div>
                       )}
                   </div>
 
+                  {/* NAV INFERIOR */}
                   <div className="flex justify-between items-center pt-2 shrink-0">
-                        <button onClick={() => setCurrentStep(p => Math.max(1, p-1))} disabled={currentStep === 1} className="p-2 text-slate-400 hover:bg-slate-200 rounded-full disabled:opacity-30 transition-all"><ArrowLeft size={20}/></button>
-                        <div className="flex gap-1.5">
-                            {[1, 2, 3].map(step => (
-                                <div key={step} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${currentStep === step ? 'bg-[#0A2463] scale-125' : 'bg-slate-300'}`}></div>
+                        <button onClick={() => setCurrentStep(p => Math.max(1, p-1))} disabled={currentStep === 1} className="w-12 h-12 flex items-center justify-center text-white/30 hover:text-white hover:bg-white/5 rounded-full disabled:opacity-0 transition-all"><ArrowLeft size={24}/></button>
+                        
+                        <div className="flex gap-3">
+                            {[1, 2].map(step => (
+                                <div key={step} className={`h-1.5 rounded-full transition-all duration-500 ${currentStep === step ? 'w-8 bg-[#D4AF37] shadow-[0_0_10px_#D4AF37]' : 'w-2 bg-white/10'}`}></div>
                             ))}
                         </div>
-                        <button onClick={() => setCurrentStep(p => Math.min(3, p+1))} disabled={currentStep === 3} className="p-2 text-white bg-[#0A2463] hover:bg-[#0A2463]/90 rounded-full disabled:opacity-50 disabled:bg-slate-300 shadow-md transition-all"><ArrowRight size={20}/></button>
+
+                        <button onClick={() => setCurrentStep(p => Math.min(2, p+1))} disabled={currentStep === 2} className="w-12 h-12 flex items-center justify-center text-[#051338] bg-[#D4AF37] hover:bg-[#F3E5AB] rounded-full disabled:opacity-0 shadow-[0_0_20px_rgba(212,175,55,0.3)] hover:shadow-[0_0_30px_rgba(212,175,55,0.6)] transition-all transform active:scale-95"><ArrowRight size={24}/></button>
                   </div>
 
               </div>

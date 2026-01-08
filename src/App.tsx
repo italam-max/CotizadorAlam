@@ -1,6 +1,6 @@
 // ARCHIVO: src/App.tsx
 import { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, LogOut, Loader2, User, Shield } from 'lucide-react';
+import { AlertCircle, CheckCircle, LogOut, Loader2, User, Shield, X } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabaseClient';
 
@@ -164,7 +164,6 @@ export default function ElevatorQuoter() {
 
   const handleSelectQuoteSmart = (quote: QuoteData) => {
     setWorkingQuote(quote);
-    // Si está en borrador, ir al editor. Si ya fue enviada/aprobada, ir al TicketView (Deal Room)
     quote.status === 'Borrador' ? setView('quoter') : setView('ticket');
   };
 
@@ -259,11 +258,26 @@ export default function ElevatorQuoter() {
         </div>
       </header>
 
-      {/* NOTIFICACIONES FLOTANTES */}
+      {/* NOTIFICACIONES REDISEÑADAS: Sólidas, Premium y Visibles */}
       {notification && (
-        <div className={`fixed top-32 right-8 z-50 animate-bounce-in glass-panel px-6 py-4 rounded-xl flex items-center gap-3 border-l-4 shadow-2xl ${notification.type === 'error' ? 'border-red-500 text-red-800' : 'border-[#D4AF37] text-[#0A2463]'}`}>
-          {notification.type === 'error' ? <AlertCircle size={24} /> : <CheckCircle size={24} className="text-[#D4AF37]" />}
-          <span className="font-bold text-sm">{notification.msg}</span>
+        <div className={`fixed top-32 right-8 z-[100] animate-bounce-in px-8 py-5 rounded-2xl flex items-center gap-4 shadow-[0_20px_60px_rgba(0,0,0,0.6)] border transition-all duration-300 min-w-[300px]
+          ${notification.type === 'error' 
+            ? 'bg-[#1a0505] border-red-500 text-red-100 shadow-[0_0_30px_rgba(239,68,68,0.2)]' 
+            : 'bg-[#020A1A] border-[#D4AF37] text-white shadow-[0_0_30px_rgba(212,175,55,0.2)]'
+          }`}
+        >
+          <div className={`p-2 rounded-full shrink-0 ${notification.type === 'error' ? 'bg-red-500/20 text-red-500' : 'bg-[#D4AF37]/20 text-[#D4AF37]'}`}>
+            {notification.type === 'error' ? <AlertCircle size={28} /> : <CheckCircle size={28} />}
+          </div>
+          <div className="flex-1">
+             <p className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${notification.type === 'error' ? 'text-red-400' : 'text-[#D4AF37]'}`}>
+               {notification.type === 'error' ? 'Error' : 'Éxito'}
+             </p>
+             <p className="font-bold text-sm leading-tight">{notification.msg}</p>
+          </div>
+          <button onClick={() => setNotification(null)} className="text-white/30 hover:text-white transition-colors">
+            <X size={16}/>
+          </button>
         </div>
       )}
 
@@ -296,7 +310,6 @@ export default function ElevatorQuoter() {
                 onExit={() => setView('dashboard')} 
                 onViewPreview={() => setView('preview')} 
                 onOpenOpsCalculator={() => setView('ops-calculator')} 
-                // AQUÍ PASAMOS LOS DATOS PARA EL AUTOCOMPLETE
                 existingQuotes={quotes} 
             />
           )}
@@ -306,8 +319,7 @@ export default function ElevatorQuoter() {
                 quote={workingQuote} 
                 onBack={() => setView('dashboard')} 
                 onUpdateStatus={handleUpdateStatus} 
-                onEdit={() => setView('quoter')}  // <--- 3. AQUÍ CONECTAMOS LA NAVEGACIÓN
-                // AQUÍ PASAMOS LOS DATOS PARA PROYECTOS RELACIONADOS
+                onEdit={() => setView('quoter')}  
                 allQuotes={quotes}
             />
           )}
