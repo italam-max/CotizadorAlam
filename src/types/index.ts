@@ -117,6 +117,9 @@ export interface UserProfile {
   job_title: string | null;
   department: string | null;
   avatar_url: string | null;
-  role?: 'admin' | 'user'; 
+  
+  // AGREGAMOS 'support' AQUÍ:
+  role?: 'admin' | 'user' | 'support'; 
+  
   active?: boolean;        
 }

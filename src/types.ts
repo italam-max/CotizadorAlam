@@ -13,8 +13,9 @@ export interface UserProfile {
   job_title: string | null;
   department?: string | null;
   avatar_url: string | null;
-  role?: 'admin' | 'user';
+  role?: 'admin' | 'user' | 'support';
   active?: boolean;
+  
 }
 
 // Condiciones Comerciales (Para el contrato)

@@ -1,11 +1,6 @@
-// ARCHIVO: src/features/settings/SettingsModal.tsx
-import React, { useState, useEffect } from 'react';
-import { 
-  X, Save, Building, Globe, Mail, 
-  MessageCircle, Server, DollarSign, Database
-} from 'lucide-react';
-import { INITIAL_SETTINGS } from '../../data/constants';
-import type { AppSettings } from '../../types';
+import React, { useState } from 'react';
+import { X, Save, ShieldAlert, Ruler, RefreshCw, Zap } from 'lucide-react';
+import { useConfig } from '../../context/ConfigContext';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -14,229 +9,182 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose, onSave }: SettingsModalProps) {
-  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
-  const [activeTab, setActiveTab] = useState<'general' | 'api' | 'email'>('general');
-
-  // Cargar configuración al abrir
-  useEffect(() => {
-    if (isOpen) {
-      const stored = localStorage.getItem('appSettings');
-      if (stored) {
-        try {
-            // Fusionamos con INITIAL_SETTINGS para asegurar que existan los campos nuevos (como whapiUrl)
-            const parsed = JSON.parse(stored);
-            setSettings({ ...INITIAL_SETTINGS, ...parsed });
-        } catch (e) {
-            setSettings(INITIAL_SETTINGS);
-        }
-      } else {
-        setSettings(INITIAL_SETTINGS);
-      }
-    }
-  }, [isOpen]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setSettings(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = () => {
-    localStorage.setItem('appSettings', JSON.stringify(settings));
-    onSave();
-    onClose();
-  };
+  const { rules, updateRule, reloadRules, loading } = useConfig();
+  const [activeTab, setActiveTab] = useState<'hyd' | 'civil'>('hyd');
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex justify-end transition-opacity animate-fadeIn">
-      <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col animate-slideLeft">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      {/* Overlay con blur */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+
+      {/* Modal Window */}
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all relative z-10 flex flex-col max-h-[90vh]">
         
-        {/* HEADER */}
-        <div className="bg-blue-900 text-white p-6 flex justify-between items-center shrink-0">
-           <div>
-              <h2 className="text-xl font-black">Configuración</h2>
-              <p className="text-blue-200 text-xs">Sistema de Cotización Alamex</p>
-           </div>
-           <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-              <X size={24} />
-           </button>
+        {/* Header */}
+        <div className="bg-[#0A2463] p-6 flex justify-between items-center shrink-0">
+          <div>
+            <h2 className="text-xl font-black text-white flex items-center gap-2">
+              <Zap size={20} className="text-[#D4AF37]" />
+              Configuración Técnica
+            </h2>
+            <p className="text-blue-200 text-xs mt-1">Define las reglas de negocio globales</p>
+          </div>
+          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
         </div>
 
-        {/* TABS DE NAVEGACIÓN */}
-        <div className="flex border-b border-slate-200 shrink-0">
-            <button 
-                onClick={() => setActiveTab('general')}
-                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex justify-center gap-2 ${activeTab === 'general' ? 'border-blue-600 text-blue-900 bg-blue-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
-            >
-                <Building size={16}/> General
-            </button>
-            <button 
-                onClick={() => setActiveTab('api')}
-                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex justify-center gap-2 ${activeTab === 'api' ? 'border-green-600 text-green-800 bg-green-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
-            >
-                <Globe size={16}/> APIs
-            </button>
-            <button 
-                onClick={() => setActiveTab('email')}
-                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex justify-center gap-2 ${activeTab === 'email' ? 'border-purple-600 text-purple-800 bg-purple-50' : 'border-transparent text-slate-500 hover:bg-slate-50'}`}
-            >
-                <Mail size={16}/> Correo
-            </button>
+        {/* Tabs de Navegación */}
+        <div className="flex border-b border-gray-100 shrink-0">
+          <button 
+            onClick={() => setActiveTab('hyd')}
+            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative
+              ${activeTab === 'hyd' ? 'text-[#0A2463] bg-blue-50/50' : 'text-gray-400 hover:bg-gray-50'}`}
+          >
+            <ShieldAlert size={16} />
+            Límites Hidráulicos
+            {activeTab === 'hyd' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#D4AF37]" />}
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('civil')}
+            className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative
+              ${activeTab === 'civil' ? 'text-[#0A2463] bg-blue-50/50' : 'text-gray-400 hover:bg-gray-50'}`}
+          >
+            <Ruler size={16} />
+            Dimensiones & MRL
+            {activeTab === 'civil' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#D4AF37]" />}
+          </button>
         </div>
 
-        {/* CONTENIDO SCROLLABLE */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            
-            {/* --- TAB GENERAL --- */}
-            {activeTab === 'general' && (
-                <div className="space-y-5 animate-fadeIn">
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Nombre de la Empresa</label>
-                        <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-3 py-2 focus-within:ring-2 ring-blue-100 transition-all">
-                            <Building size={18} className="text-slate-400"/>
-                            <input name="companyName" value={settings.companyName} onChange={handleChange} className="w-full outline-none text-sm font-medium" />
-                        </div>
+        {/* Contenido Scrollable */}
+        <div className="p-6 overflow-y-auto">
+          {loading ? (
+            <div className="text-center py-10 text-gray-400">Cargando reglas...</div>
+          ) : (
+            <div className="space-y-6">
+              
+              {/* TAB 1: HIDRÁULICOS */}
+              {activeTab === 'hyd' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 mb-4">
+                    <p className="text-xs text-orange-800 leading-relaxed">
+                      <strong>Nota:</strong> Estos límites determinan cuándo el cotizador bloquea la opción hidráulica y sugiere tracción.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Recorrido Máximo (mm)</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                            type="number" 
+                            value={rules.max_hydraulic_travel}
+                            onChange={(e) => updateRule('max_hydraulic_travel', Number(e.target.value))}
+                            className="flex-1 p-3 bg-gray-50 border-gray-200 rounded-lg font-mono text-[#0A2463] font-bold focus:ring-2 focus:ring-[#D4AF37] outline-none"
+                        />
+                        <span className="text-xs font-bold text-gray-400">Legacy: 15000</span>
+                      </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">IVA (Decimal)</label>
-                            <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-3 py-2">
-                                <span className="font-bold text-slate-400">%</span>
-                                <input name="ivaRate" type="number" step="0.01" value={settings.ivaRate} onChange={handleChange} className="w-full outline-none text-sm font-medium" />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-slate-500 uppercase">Moneda Base</label>
-                            <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-3 py-2">
-                                <DollarSign size={18} className="text-slate-400"/>
-                                <select name="currency" value={settings.currency} onChange={handleChange} className="w-full outline-none text-sm font-medium bg-transparent">
-                                    <option value="MXN">MXN - Pesos</option>
-                                    <option value="USD">USD - Dólares</option>
-                                </select>
-                            </div>
-                        </div>
+                       <div>
+                          <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Paradas Máx</label>
+                          <input 
+                              type="number"
+                              value={rules.max_hydraulic_stops}
+                              onChange={(e) => updateRule('max_hydraulic_stops', Number(e.target.value))}
+                              className="w-full p-3 bg-gray-50 border-gray-200 rounded-lg font-mono font-bold"
+                          />
+                       </div>
+                       <div>
+                          <label className="text-xs font-bold text-gray-500 uppercase block mb-1">Velocidad Máx (m/s)</label>
+                          <input 
+                              type="number" step="0.1"
+                              value={rules.hyd_speed_max}
+                              onChange={(e) => updateRule('hyd_speed_max', Number(e.target.value))}
+                              className="w-full p-3 bg-gray-50 border-gray-200 rounded-lg font-mono font-bold"
+                          />
+                       </div>
                     </div>
-
-                    <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase">Email Administrativo</label>
-                        <div className="flex items-center gap-2 border border-slate-300 rounded-lg px-3 py-2">
-                            <Mail size={18} className="text-slate-400"/>
-                            <input name="adminEmail" value={settings.adminEmail} onChange={handleChange} className="w-full outline-none text-sm font-medium" />
-                        </div>
-                    </div>
+                  </div>
                 </div>
-            )}
+              )}
 
-            {/* --- TAB INTEGRACIONES (APIS) --- */}
-            {activeTab === 'api' && (
+              {/* TAB 2: CIVIL & MRL */}
+              {activeTab === 'civil' && (
                 <div className="space-y-6 animate-fadeIn">
-                    
-                    {/* WHATSAPP / WHAPI */}
-                    <div className="bg-green-50/50 p-4 rounded-xl border border-green-200 shadow-sm space-y-4">
-                        <h4 className="font-bold text-green-800 text-sm flex items-center gap-2 border-b border-green-200 pb-2">
-                            <MessageCircle size={18}/> WhatsApp Gateway (Whapi)
-                        </h4>
-                        
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-green-700 uppercase">API Endpoint URL</label>
-                            <input 
-                                type="text" 
-                                name="whapiUrl"
-                                value={settings.whapiUrl}
-                                onChange={handleChange}
-                                placeholder="Ej: https://gate.whapi.cloud/messages/text"
-                                className="w-full p-2 border border-green-200 rounded text-sm focus:border-green-500 outline-none"
-                            />
-                            <p className="text-[10px] text-green-600/70">La URL base de tu instancia de Whapi.</p>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-green-700 uppercase">API Token</label>
-                            <input 
-                                type="password" 
-                                name="whapiToken"
-                                value={settings.whapiToken}
-                                onChange={handleChange}
-                                placeholder="Pegar token aquí..."
-                                className="w-full p-2 border border-green-200 rounded text-sm focus:border-green-500 outline-none"
-                            />
-                        </div>
+                  
+                  <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                    <label className="block text-xs font-bold text-blue-800 uppercase mb-2">Límite MRL {"->"} MR</label>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="number" 
+                            value={rules.mrl_capacity_limit}
+                            onChange={(e) => updateRule('mrl_capacity_limit', Number(e.target.value))}
+                            className="w-full p-2 bg-white border border-blue-200 rounded-lg font-mono text-[#0A2463] font-bold"
+                        />
+                        <span className="text-sm font-bold text-blue-600">KG</span>
                     </div>
+                    <p className="text-[10px] text-blue-500 mt-2">
+                        Si la capacidad excede este valor, se sugerirá Cuarto de Máquinas.
+                    </p>
+                  </div>
 
-                    {/* ODOO ERP */}
-                    <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-200 shadow-sm space-y-4">
-                         <h4 className="font-bold text-purple-800 text-sm flex items-center gap-2 border-b border-purple-200 pb-2">
-                            <Database size={18}/> Odoo ERP
-                        </h4>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-purple-700 uppercase">URL Servidor</label>
-                            <input name="odooUrl" value={settings.odooUrl} onChange={handleChange} className="form-input text-xs" placeholder="https://odoo.alamex.com" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-purple-700 uppercase">Base de Datos</label>
-                                <input name="odooDb" value={settings.odooDb} onChange={handleChange} className="form-input text-xs" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-purple-700 uppercase">Usuario</label>
-                                <input name="odooUser" value={settings.odooUser} onChange={handleChange} className="form-input text-xs" />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-purple-700 uppercase">API Key / Contraseña</label>
-                            <input type="password" name="odooKey" value={settings.odooKey} onChange={handleChange} className="form-input text-xs" />
-                        </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fosa Estándar (mm)</label>
+                        <input 
+                            type="number" 
+                            value={rules.min_pit_std}
+                            onChange={(e) => updateRule('min_pit_std', Number(e.target.value))}
+                            className="w-full p-3 bg-gray-50 border-gray-200 rounded-lg font-mono text-gray-700"
+                        />
                     </div>
-                </div>
-            )}
+                    <div>
+                        <label className="block text-xs font-bold text-red-400 uppercase mb-1">Fosa Mínima (mm)</label>
+                        <input 
+                            type="number" 
+                            value={rules.min_pit_reduced}
+                            onChange={(e) => updateRule('min_pit_reduced', Number(e.target.value))}
+                            className="w-full p-3 bg-red-50 border-red-100 rounded-lg font-mono text-red-700 font-bold"
+                        />
+                    </div>
+                  </div>
 
-            {/* --- TAB EMAIL --- */}
-            {activeTab === 'email' && (
-                <div className="space-y-6 animate-fadeIn">
-                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                        <h4 className="font-bold text-slate-700 text-sm flex items-center gap-2 border-b border-slate-200 pb-2">
-                            <Server size={18}/> SMTP / ZeptoMail
-                        </h4>
-                        <div className="grid grid-cols-2 gap-3">
-                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase">Host</label>
-                                <input name="smtpHost" value={settings.smtpHost} onChange={handleChange} className="form-input text-xs" placeholder="smtp.zeptomail.com" />
-                            </div>
-                             <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase">Puerto</label>
-                                <input name="smtpPort" type="number" value={settings.smtpPort} onChange={handleChange} className="form-input text-xs" placeholder="587" />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Usuario SMTP</label>
-                            <input name="smtpUser" value={settings.smtpUser} onChange={handleChange} className="form-input text-xs" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Contraseña</label>
-                            <input type="password" name="smtpPass" value={settings.smtpPass} onChange={handleChange} className="form-input text-xs" />
-                        </div>
-                     </div>
+                  <div>
+                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Huida / Overhead (mm)</label>
+                     <input 
+                        type="number" 
+                        value={rules.min_overhead_std}
+                        onChange={(e) => updateRule('min_overhead_std', Number(e.target.value))}
+                        className="w-full p-3 bg-gray-50 border-gray-200 rounded-lg font-mono text-gray-700"
+                     />
+                  </div>
                 </div>
-            )}
-
+              )}
+            </div>
+          )}
         </div>
 
-        {/* FOOTER ACCIONES */}
-        <div className="p-6 border-t border-slate-200 bg-slate-50 flex gap-4 shrink-0">
-            <button 
-                onClick={onClose}
-                className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors"
-            >
-                Cancelar
-            </button>
-            <button 
-                onClick={handleSave}
-                className="flex-1 py-3 bg-blue-900 text-white font-bold rounded-xl shadow-lg hover:bg-blue-800 transition-colors flex items-center justify-center gap-2"
-            >
-                <Save size={18}/> Guardar Cambios
-            </button>
+        {/* Footer */}
+        <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
+          <button 
+            onClick={reloadRules}
+            className="text-gray-400 hover:text-gray-600 text-xs font-bold flex items-center gap-1"
+          >
+            <RefreshCw size={14} /> Recargar Datos
+          </button>
+
+          <button 
+            onClick={() => { onSave(); onClose(); }}
+            className="bg-[#0A2463] hover:bg-[#1a3a8f] text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10 transition-all flex items-center gap-2"
+          >
+            <Save size={18} />
+            Guardar Cambios
+          </button>
         </div>
 
       </div>
