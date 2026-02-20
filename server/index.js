@@ -1,9 +1,9 @@
+// ARCHIVO: server/index.js
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import nodemailer from 'nodemailer';
 import PdfPrinter from 'pdfmake';
-import axios from 'axios';
+// import axios from 'axios'; // Desactivamos axios temporalmente para ahorrar recursos
 
 const app = express();
 app.use(cors());
@@ -20,99 +20,76 @@ const fonts = {
 };
 const printer = new PdfPrinter(fonts);
 
-// --- GENERADOR DE PDF ---
+// --- GENERADOR DE PDF (Lógica Preservada) ---
 const generatePdfBinary = (formData) => {
   return new Promise((resolve, reject) => {
-    const docDefinition = {
-      content: [
-        { text: 'COTIZACIÓN ALAMEX ELEVADORES', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] },
-        { text: `Cliente: ${formData.clientName}`, margin: [0, 5] },
-        { text: `Proyecto: ${formData.projectRef}`, margin: [0, 5] },
-        { text: `Fecha: ${formData.projectDate}`, margin: [0, 20] },
-        {
-          table: {
-            widths: ['*', 'auto'],
-            body: [
-              [{ text: 'Descripción', bold: true }, { text: 'Valor', bold: true }],
-              ['Modelo', formData.model],
-              ['Capacidad', `${formData.capacity} kg`],
-              ['Paradas', formData.stops.toString()],
-              ['Velocidad', `${formData.speed} m/s`],
-            ]
-          }
-        },
-        { text: 'Este documento es una propuesta preliminar generada automáticamente.', margin: [0, 30], italics: true, fontSize: 10 }
-      ],
-      styles: {
-        header: { fontSize: 18, bold: true }
-      }
-    };
+    try {
+        const docDefinition = {
+        content: [
+            { text: 'COTIZACIÓN ALAMEX ELEVADORES', style: 'header', alignment: 'center', margin: [0, 0, 0, 20] },
+            { text: `Cliente: ${formData.clientName || 'N/A'}`, margin: [0, 5] },
+            { text: `Proyecto: ${formData.projectRef || 'Sin Ref'}`, margin: [0, 5] },
+            { text: `Fecha: ${formData.projectDate || new Date().toLocaleDateString()}`, margin: [0, 20] },
+            {
+            table: {
+                widths: ['*', 'auto'],
+                body: [
+                [{ text: 'Descripción', bold: true }, { text: 'Valor', bold: true }],
+                ['Modelo', formData.model || '-'],
+                ['Capacidad', `${formData.capacity || 0} kg`],
+                ['Paradas', (formData.stops || 0).toString()],
+                ['Velocidad', `${formData.speed || 0} m/s`],
+                ]
+            }
+            },
+            { text: 'Este documento es una propuesta preliminar generada automáticamente.', margin: [0, 30], italics: true, fontSize: 10 }
+        ],
+        styles: {
+            header: { fontSize: 18, bold: true }
+        }
+        };
 
-    const pdfDoc = printer.createPdfKitDocument(docDefinition);
-    let chunks = [];
-    pdfDoc.on('data', (chunk) => chunks.push(chunk));
-    pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-    pdfDoc.end();
+        const pdfDoc = printer.createPdfKitDocument(docDefinition);
+        let chunks = [];
+        pdfDoc.on('data', (chunk) => chunks.push(chunk));
+        pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+        pdfDoc.end();
+    } catch (error) {
+        reject(error);
+    }
   });
 };
 
-// --- ENDPOINT ENVÍO WHATSAPP (WHAPI) ---
+// --- ENDPOINT ENVÍO WHATSAPP (MODO: PRÓXIMAMENTE) ---
 app.post('/api/share/send', async (req, res) => {
+  // Mantenemos la estructura para recibir los datos, pero no procesamos el envío externo
   const { formData, method } = req.body;
 
   try {
-    const pdfBuffer = await generatePdfBinary(formData);
+    // Aún generamos el PDF para asegurar que esa lógica no tiene errores de sintaxis
+    // Esto sirve como "Test silencioso" de la generación de documentos
+    await generatePdfBinary(formData);
 
     if (method === 'whatsapp') {
-      // 1. Formatear teléfono (Asegúrate que tenga código de país, ej 52 para MX)
-      let phone = formData.clientPhone.replace(/\D/g, '');
-      if (phone.length === 10) phone = '52' + phone; 
-
-      // 2. Convertir PDF a Base64
-      const pdfBase64 = pdfBuffer.toString('base64');
+      console.log(`[INFO] Solicitud de envío recibida para: ${formData.projectRef}. Módulo en pausa.`);
       
-      // 3. Enviar a Whapi
-      const whapiResponse = await axios.post(
-        `${process.env.WHAPI_URL}/messages/document`,
-        {
-          to: `${phone}@s.whatsapp.net`,
-          media: `data:application/pdf;base64,${pdfBase64}`,
-          filename: `Cotizacion_${formData.projectRef}.pdf`,
-          caption: `Hola ${formData.clientName}, adjunto encontrarás la cotización para el proyecto *${formData.projectRef}*. \n\nQuedo atento a tus comentarios.`
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.WHAPI_TOKEN}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      // Devolvemos datos para el chat simulado en el frontend
+      // Respuesta "Fake" o de Mantenimiento
       return res.json({ 
-        success: true, 
-        message: 'Enviado por Whapi',
-        chatData: {
-            id: Date.now(), // ID temporal
-            name: formData.clientName,
-            lastMsg: 'Documento enviado: Cotización.pdf',
-            time: 'Ahora',
-            history: [
-                { sender: 'me', text: `Hola ${formData.clientName}, adjunto encontrarás la cotización para el proyecto ${formData.projectRef}.`, timestamp: Date.now() }
-            ]
-        }
+        success: false, // Marcamos false para que el frontend muestre el aviso
+        message: 'El servicio de envío está deshabilitado temporalmente para mantenimiento.',
+        // No devolvemos chatData simulado para no confundir al usuario
       });
     }
 
     res.status(400).json({ success: false, message: 'Método no soportado' });
 
   } catch (error) {
-    console.error('Error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error interno (Stub):', error.message);
+    res.status(500).json({ success: false, error: 'Error en el servidor de documentos.' });
   }
 });
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT} (Modo: Pruebas/Stub)`);
 });

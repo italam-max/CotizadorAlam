@@ -11,6 +11,20 @@ import {
 
 const STANDARD_FLOOR_HEIGHT = 3000; 
 
+// --- NUEVO: Interfaz para lo que viene del Catálogo ---
+export interface ProductSpecs {
+  id?: string;
+  name?: string;
+  min_capacity?: number;
+  max_capacity?: number;
+  max_stops?: number;
+  max_speed?: number;
+  std_pit?: number;
+  std_overhead?: number;
+  min_shaft_width?: number;
+  min_shaft_depth?: number;
+}
+
 // --- HELPER INTERNO ---
 const getDimensionsBySpeed = (speed: number, modelId: string) => {
     const rule = SPEED_DIMENSIONS_TABLE.find(r => r.speed === speed && r.type === modelId) 
@@ -26,7 +40,7 @@ const getMinSpeedForStops = (stops: number) => {
     return 0.0;
 };
 
-// --- 1. OBTENER VALORES POR DEFECTO ---
+// --- 1. OBTENER VALORES POR DEFECTO (TU LÓGICA ORIGINAL INTACTA) ---
 export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<QuoteData> => {
     const updates: Partial<QuoteData> = {};
     
@@ -41,19 +55,19 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     // --- AUTO-CORRECCIÓN DE MODELO ---
     let currentModel = currentData.model;
     
-    // 1. Corrección por Paradas: Si supera 8 y es MRL, lo pasamos a MR
+    // 1. Corrección por Paradas
     if (currentModel && String(currentModel).includes('MRL') && activeStops > 8) {
         updates.model = 'MR';
         currentModel = 'MR'; 
     }
 
-    // 2. Corrección por Capacidad: Si supera 800kg y es MRL, lo pasamos a MR (NUEVO)
+    // 2. Corrección por Capacidad
     if (currentModel && String(currentModel).includes('MRL') && activeCapacity > 800) {
         updates.model = 'MR';
         currentModel = 'MR';
     }
 
-    // B. Selección Inteligente de Modelo (Si no hay modelo o fue invalidado)
+    // B. Selección Inteligente
     if (!currentModel) {
         if (activeTravel <= HYDRAULIC_LIMITS.maxTravel && activeStops <= HYDRAULIC_LIMITS.maxStops && activeCapacity <= 1000) {
             updates.model = 'HYD';
@@ -65,11 +79,11 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     }
     const activeModel = updates.model || currentData.model || 'MRL-G';
 
-    // C. Sincronización Personas
+    // C. Personas
     const personRule = CAPACITY_PERSONS_TABLE.find(p => p.kg === activeCapacity);
     if (personRule) updates.persons = personRule.persons;
 
-    // D. Velocidad Recomendada (Auto-ajuste)
+    // D. Velocidad
     const techRule = TECHNICAL_RULES.find(r => activeCapacity >= r.minKg && activeCapacity <= r.maxKg);
     let maxSpeedAllowed = 1.0;
     
@@ -96,7 +110,7 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     }
     const activeSpeed = Number(updates.speed || currentData.speed || 1.0);
 
-    // E. Dimensiones de Cubo
+    // E. Dimensiones
     if (techRule) {
         if (!currentData.shaftWidth) updates.shaftWidth = techRule.minWidth;
         if (!currentData.shaftDepth) updates.shaftDepth = techRule.minDepth;
@@ -121,12 +135,11 @@ export const getSmartDefaults = (currentData: Partial<QuoteData>): Partial<Quote
     return updates;
 };
 
-// --- 2. OBTENER OPCIONES ESTRICTAS (Para UI) ---
+// --- 2. OPCIONES ESTRICTAS (TU LÓGICA ORIGINAL INTACTA) ---
 export const getStrictOptions = (data: QuoteData) => {
     const estimatedTravel = (data.stops - 1) * STANDARD_FLOOR_HEIGHT;
     const effectiveTravel = data.travel > 0 ? data.travel : estimatedTravel;
 
-    // A. Modelos Válidos
     const validModels = ELEVATOR_MODELS.filter(m => {
         if ((m.id === 'HYD' || m.id === 'Home Lift') && (effectiveTravel > HYDRAULIC_LIMITS.maxTravel || data.stops > HYDRAULIC_LIMITS.maxStops)) return false;
         if (m.id === 'MRL-L' && data.capacity > 450) return false;
@@ -135,7 +148,6 @@ export const getStrictOptions = (data: QuoteData) => {
         return true;
     });
 
-    // B. Velocidades Válidas
     const techRule = TECHNICAL_RULES.find(r => data.capacity >= r.minKg && data.capacity <= r.maxKg);
     let maxSpeed = 1.0;
 
@@ -155,7 +167,6 @@ export const getStrictOptions = (data: QuoteData) => {
         validSpeeds = [String(maxSpeed)];
     }
 
-    // C. Límites Numéricos
     const currentSpeed = parseFloat(String(data.speed));
     const dimRule = getDimensionsBySpeed(currentSpeed, data.model);
     const isHydraulic = data.model === 'HYD' || data.model === 'Home Lift';
@@ -179,10 +190,13 @@ export const getStrictOptions = (data: QuoteData) => {
     };
 };
 
-export const validateConfiguration = (data: QuoteData) => {
+// --- 3. VALIDACIÓN HÍBRIDA (AQUÍ ESTÁ LA FUSIÓN) ---
+// Ahora acepta 'product' opcional. Si viene, lo obedece. Si no, usa tu lógica original.
+export const validateConfiguration = (data: QuoteData, product?: ProductSpecs) => {
     const warnings: string[] = [];
     const suggestions: Partial<QuoteData> = {};
     const fieldsWithError: string[] = []; 
+    const errors: string[] = []; // Agregué errors para bloqueos duros del catálogo
     
     const isMRL = String(data.model).includes('MRL');
 
@@ -191,6 +205,37 @@ export const validateConfiguration = (data: QuoteData) => {
         if (field) fieldsWithError.push(field);
     };
 
+    // --- CAPA 1: VALIDACIÓN CONTRA EL CATÁLOGO (NUEVO) ---
+    if (product) {
+        // Validar Carga
+        if (data.capacity < (product.min_capacity || 0)) {
+            warn(`El modelo ${product.name} requiere al menos ${product.min_capacity}kg.`, 'capacity');
+        }
+        if (data.capacity > (product.max_capacity || 99999)) {
+            warn(`El modelo ${product.name} solo soporta hasta ${product.max_capacity}kg.`, 'capacity');
+        }
+
+        // Validar Fosa (Pit) contra el producto
+        if (product.std_pit && data.pit < product.std_pit) {
+             warn(`El ${product.name} requiere fosa estándar de ${product.std_pit}mm.`, 'pit');
+             suggestions.pit = product.std_pit; // Sugerimos lo que dice el catálogo
+        }
+
+        // Validar Huida (Overhead) contra el producto
+        if (product.std_overhead && data.overhead < product.std_overhead) {
+             warn(`El ${product.name} requiere huida estándar de ${product.std_overhead}mm.`, 'overhead');
+             suggestions.overhead = product.std_overhead;
+        }
+
+        // Validar Dimensiones de Cubo (Vital para evitar errores de venta)
+        if (product.min_shaft_width && data.shaftWidth < product.min_shaft_width) {
+            warn(`Cubo muy angosto para ${product.name}. Mínimo: ${product.min_shaft_width}mm`, 'shaftWidth');
+        }
+    }
+
+    // --- CAPA 2: TU LÓGICA ORIGINAL (RESPALDO) ---
+    // Se ejecuta siempre, pero la Capa 1 ya pudo haber atrapado lo específico
+    
     const minSpeedRequired = getMinSpeedForStops(data.stops);
     const currentSpeed = Number(data.speed);
 
@@ -198,10 +243,12 @@ export const validateConfiguration = (data: QuoteData) => {
         warn(`Para ${data.stops} paradas se recomienda mín. ${minSpeedRequired} m/s`, 'speed');
     }
 
+    // Solo validamos esto si NO hubo una regla de producto que ya lo cubriera
+    // (O podemos dejarlo como doble chequeo de seguridad)
     if (!isMRL && data.pit < 300) warn("Fosa (Pit) peligrosamente baja. Mínimo absoluto 300mm.", 'pit');
 
     if (data.model === 'MRL-L' && data.capacity > 450) {
-        warn("El modelo MRL-L solo soporta hasta 450kg.", 'model');
+        warn("El modelo MRL-L solo soporta hasta 450kg (Regla General).", 'model');
         fieldsWithError.push('capacity');
     }
     if ((data.model === 'HYD' || data.model === 'Home Lift') && data.travel > 15000) {
@@ -209,18 +256,21 @@ export const validateConfiguration = (data: QuoteData) => {
         fieldsWithError.push('model');
     }
 
-    const requiredDims = getDimensionsBySpeed(currentSpeed, data.model);
-    
-    if (!isMRL && data.model !== 'HYD' && data.pit < requiredDims.pit * 0.9) {
-        warn(`Para ${currentSpeed}m/s se recomienda Fosa de ${requiredDims.pit}mm.`, 'pit');
-    }
-    if (!isMRL && data.model !== 'HYD' && data.overhead < requiredDims.overhead * 0.9) {
-        warn(`Para ${currentSpeed}m/s se recomienda Huida de ${requiredDims.overhead}mm.`, 'overhead');
+    // Si no tenemos producto específico, usamos las fórmulas genéricas
+    if (!product) {
+        const requiredDims = getDimensionsBySpeed(currentSpeed, data.model);
+        if (!isMRL && data.model !== 'HYD' && data.pit < requiredDims.pit * 0.9) {
+            warn(`Para ${currentSpeed}m/s se recomienda Fosa de ${requiredDims.pit}mm.`, 'pit');
+        }
+        if (!isMRL && data.model !== 'HYD' && data.overhead < requiredDims.overhead * 0.9) {
+            warn(`Para ${currentSpeed}m/s se recomienda Huida de ${requiredDims.overhead}mm.`, 'overhead');
+        }
     }
 
-    return { warnings, suggestions, fieldsWithError };
+    return { warnings, suggestions, fieldsWithError, errors };
 };
 
+// --- 4. MATERIALES (TU LÓGICA ORIGINAL INTACTA) ---
 export const calculateMaterials = (data: QuoteData) => {
     const qty = data.quantity || 1;
     const stops = data.stops || 2;
