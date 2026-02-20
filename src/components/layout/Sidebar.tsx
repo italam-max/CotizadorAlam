@@ -141,7 +141,7 @@ export function Sidebar({ currentView, setView, onNewQuote, quotes, onSelectQuot
         {/* FOOTER */}
         <div className="p-4 bg-gradient-to-t from-[#051338] to-transparent border-t border-[#D4AF37]/20 text-center relative">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent"></div>
-            <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest opacity-80">Sistema v2.3 <span className="text-white/40">|</span> ALAMEX </p>
+            <p className="text-[9px] font-black text-[#D4AF37] uppercase tracking-widest opacity-80"> 1.8.9.8 Relase <span className="text-white/40">|</span> ALAMEX </p>
         </div>
       </div>
     </aside>
