@@ -1,13 +1,12 @@
 // ARCHIVO: src/features/quoter/PlatformQuoter.tsx
 import { useState, useEffect } from 'react';
 import { 
-  Truck, Calculator, Layout, Save, FileText, 
-  ArrowRight, ArrowLeft, AlertTriangle, Zap, CheckCircle2 
+  Truck, Calculator, Layout, Save, 
+  CheckCircle2 
 } from 'lucide-react';
 import type { QuoteData } from '../../types';
 import { InputGroup } from '../../components/ui/InputGroup';
 import { ClientAutocomplete } from '../../components/ui/ClientAutocomplete';
-import { ElevatorVisualizer } from './components/ElevatorVisualizer';
 import { validateConfiguration } from '../../services/calculations';
 
 interface PlatformQuoterProps {
@@ -25,8 +24,7 @@ const STEPS = [
 ];
 
 export function PlatformQuoter({ 
-  initialData, existingQuotes, onUpdate, onSave, onViewPreview 
-}: PlatformQuoterProps) {
+  initialData, existingQuotes, onUpdate, onSave}: PlatformQuoterProps) {
   
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<QuoteData>({

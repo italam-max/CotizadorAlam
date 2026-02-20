@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export default function TechnicalRulesEditor() {
   const { rules, updateRule, reloadRules, loading } = useConfig();
-  const [saving, setSaving] = useState(false);
+  const [] = useState(false);
 
   if (loading) return <div className="p-8">Cargando configuración...</div>;
 

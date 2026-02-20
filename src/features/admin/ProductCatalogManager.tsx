@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { 
   Package, Plus, Search, Edit2, Trash2, 
-  Save, X, CheckCircle, Globe, Tag, Settings, Ruler, 
-  Loader2, Image as ImageIcon, FileText, Check, Power 
+  Save, X, CheckCircle, Tag, Settings, Ruler, 
+  Loader2, Image as ImageIcon, FileText, Power 
 } from 'lucide-react';
 
 interface CatalogProduct {

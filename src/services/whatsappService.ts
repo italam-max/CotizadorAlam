@@ -17,7 +17,7 @@ export const WhatsappService = {
   /**
    * Método Placeholder para envío de texto
    */
-  sendMessage: async (to: string, body: string) => {
+  sendMessage: async (_to: string, _body: string) => {
     console.log('WhatsApp Service: Módulo desactivado (Coming Soon).');
     // Simulamos una respuesta de fallo controlado para que la UI muestre el aviso
     return { 
@@ -29,7 +29,7 @@ export const WhatsappService = {
   /**
    * Método Placeholder para envío de PDF
    */
-  sendPdf: async (to: string, base64Pdf: string, fileName: string, caption: string) => {
+  sendPdf: async (_to: string, _base64Pdf: string, _fileName: string, _caption: string) => {
     console.log('WhatsApp Service: Envío de PDF desactivado.');
     
     // Retornamos una promesa resuelta con error controlado

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Save, ShieldAlert, Ruler, RefreshCw, Zap } from 'lucide-react';
 import { useConfig } from '../../context/ConfigContext';
 
