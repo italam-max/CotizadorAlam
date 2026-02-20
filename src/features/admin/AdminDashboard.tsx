@@ -1,10 +1,10 @@
 // ARCHIVO: src/features/admin/AdminDashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Users, Shield, Ban, CheckCircle2, 
-  Search, RefreshCw, Plus, X, Save, Lock, Mail, User, 
-  Database, ChevronRight, Crown, Headset, Zap, LayoutGrid,
-  Activity, MoreHorizontal, FileKey
+  ArrowLeft, Users, Shield, 
+  Search, RefreshCw, Plus, X, Lock, Mail, User, 
+  Database, Crown, Headset, Zap, LayoutGrid,
+  MoreHorizontal, FileKey
 } from 'lucide-react';
 import { UserService } from '../../services/userService';
 import type { UserProfile } from '../../types';

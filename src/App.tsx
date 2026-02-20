@@ -150,7 +150,7 @@ export default function ElevatorQuoter() {
     showNotify('Datos de tráfico importados');
   };
 
-  const handleTrackQuote = (quote: QuoteData) => { setWorkingQuote(quote); setView('tracker'); };
+  //const handleTrackQuote = (quote: QuoteData) => { setWorkingQuote(quote); setView('tracker'); };
   const handleOpenTracker = () => { setWorkingQuote(INITIAL_FORM_STATE); setView('tracker'); };
 
   const handleSelectQuoteSmart = (quote: QuoteData) => {
@@ -318,7 +318,6 @@ export default function ElevatorQuoter() {
             isOpen={settingsOpen} 
             onClose={() => setSettingsOpen(false)} 
             onSave={() => showNotify('Configuración guardada')} 
-            userProfile={userProfile} 
         />
         </div>
     </ConfigProvider>

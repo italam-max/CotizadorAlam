@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/quoter/components/ConfigAnalysisTable.tsx
 
 import React from 'react';
-import type { ConfigItem } from '../types';
+import type { ConfigItem } from '../../../types';
 
 interface Props {
   items: ConfigItem[];

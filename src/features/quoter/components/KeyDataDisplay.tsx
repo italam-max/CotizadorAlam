@@ -1,7 +1,7 @@
 // ARCHIVO: src/features/quoter/components/KeyDataDisplay.tsx
 
 import React from 'react';
-import type { QuoteData } from '../types';
+import type { QuoteData } from '../../../types';
 
 interface Props {
   data: QuoteData;
@@ -24,15 +24,15 @@ export const KeyDataDisplay: React.FC<Props> = ({ data }) => {
           Inversión Total Estimada
         </h4>
         <div className="text-amber-400 text-4xl font-mono font-bold">
-          {formatCurrency(data.precio_base, data.moneda)}
+          {formatCurrency(data.price, data.currency || 'MXN')}
         </div>
       </div>
 
       {/* Tarjetas de Datos Técnicos */}
-      <DataCard label="Capacidad" value={data.capacidad} sub={`${data.personas} Personas`} />
-      <DataCard label="Velocidad" value={data.velocidad} />
-      <DataCard label="Niveles" value={data.paradas} sub="Paradas" />
-      <DataCard label="Recorrido" value={data.recorridos} />
+      <DataCard label="Capacidad" value={data.capacity} sub={`${data.persons} Personas`} />
+      <DataCard label="Velocidad" value={data.speed} />
+      <DataCard label="Niveles" value={data.stops} sub="Paradas" />
+      <DataCard label="Recorrido" value={data.travel} />
     </div>
   );
 };

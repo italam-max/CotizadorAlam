@@ -123,3 +123,10 @@ export interface UserProfile {
   
   active?: boolean;        
 }
+
+export interface ConfigItem {
+  id: string | number;
+  parametro: string;
+  valor: string | number;
+  observaciones?: string;
+}

@@ -162,3 +162,10 @@ export interface QuoteData {
   materials?: any; 
   commercialTerms?: CommercialTerms;
 }
+
+export interface ConfigItem {
+  id: string | number;
+  parametro: string;
+  valor: string | number;
+  observaciones?: string;
+}
